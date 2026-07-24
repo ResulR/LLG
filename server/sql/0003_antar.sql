@@ -1,0 +1,2 @@
+ALTER TABLE work_teeth
+ADD COLUMN is_antar BOOLEAN NOT NULL DEFAULT false;

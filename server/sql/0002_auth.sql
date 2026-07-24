@@ -1,0 +1,12 @@
+CREATE TABLE users (
+  id BIGSERIAL PRIMARY KEY,
+
+  username TEXT NOT NULL UNIQUE,
+
+  password_hash TEXT NOT NULL,
+
+  active BOOLEAN NOT NULL DEFAULT true,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

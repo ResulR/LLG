@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.*
+*.log
+
+server/dist/
+
+.vscode/
+.idea/
+
+.DS_Store
+
+# Autoriser le modèle de configuration sans secrets
+!.env.example
