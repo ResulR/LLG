@@ -11,6 +11,7 @@ import {
 } from "react-router-dom";
 
 import Layout from "@/components/Layout";
+import { useMonth } from "@/context/MonthContext";
 import { api } from "@/lib/api";
 
 
@@ -45,13 +46,20 @@ type Work = {
   month:number;
   monthly_number:number;
   work_date:string;
+  description:string|null;
+  is_repeat:boolean;
+  pricing_mode:"per_tooth"|"fixed_total";
   price_per_tooth:string;
   total_amount:string;
   paid_amount:string;
   remaining_amount:string;
   status:"active"|"cancelled";
   payment_status:
-    "paid"|"partial"|"unpaid"|"cancelled";
+    | "paid"
+    | "partial"
+    | "unpaid"
+    | "closed_global"
+    | "cancelled";
   first_name:string;
   last_name:string;
   material_name:string|null;
@@ -129,6 +137,9 @@ function getPaymentStatusLabel(
     case "unpaid":
       return "E papaguar";
 
+    case "closed_global":
+      return "E mbyllur globalisht";
+
     default:
       return "Anuluar";
 
@@ -138,6 +149,10 @@ function getPaymentStatusLabel(
 
 
 export default function DoctorDetails() {
+
+  const {
+    selectedMonth,
+  } = useMonth();
 
   const { id } = useParams();
   const navigate = useNavigate();
@@ -170,7 +185,11 @@ export default function DoctorDetails() {
     try {
 
       const response =
-        await api(`/doctors/${id}/details`);
+        await api(
+          `/doctors/${id}/details?month=${encodeURIComponent(
+            selectedMonth,
+          )}`,
+        );
 
 
       if(!response.ok) {
@@ -207,7 +226,10 @@ export default function DoctorDetails() {
 
     loadDetails();
 
-  },[id]);
+  },[
+    id,
+    selectedMonth,
+  ]);
 
 
   useEffect(()=>{
@@ -275,6 +297,7 @@ export default function DoctorDetails() {
         work.last_name,
         work.material_name ?? "",
         work.color_name ?? "",
+        work.description ?? "",
       ]
         .join(" ")
         .toLowerCase()
@@ -296,7 +319,9 @@ export default function DoctorDetails() {
       if(filter === "paid") {
 
         matchesFilter =
-          work.payment_status === "paid";
+          work.payment_status === "paid" ||
+          work.payment_status ===
+            "closed_global";
 
       }
 
@@ -583,6 +608,8 @@ export default function DoctorDetails() {
                         <th>Pacienti</th>
                         <th>Data</th>
                         <th>Materiali</th>
+                        <th>Përshkrimi</th>
+                        <th>Lloji</th>
                         <th>Totali</th>
                         <th>Paguar</th>
                         <th>Mbetja</th>
@@ -620,6 +647,35 @@ export default function DoctorDetails() {
 
                           <td>
                             {work.material_name ?? "-"}
+                          </td>
+
+                          <td>
+                            <span
+                              className="doctor-work-table-description"
+                              title={
+                                work.description ??
+                                "Pa përshkrim"
+                              }
+                            >
+                              {
+                                work.description ??
+                                "Pa përshkrim"
+                              }
+                            </span>
+                          </td>
+
+                          <td>
+                            {
+                              work.is_repeat ? (
+                                <span className="works-repeat-badge">
+                                  Përsëritje
+                                </span>
+                              ) : (
+                                <span className="works-standard-badge">
+                                  E re
+                                </span>
+                              )
+                            }
                           </td>
 
                           <td>
@@ -674,7 +730,7 @@ export default function DoctorDetails() {
                         <tr>
 
                           <td
-                            colSpan={8}
+                            colSpan={10}
                             className="doctor-detail-empty"
                           >
                             Nuk u gjet asnjë punë.
@@ -868,15 +924,51 @@ export default function DoctorDetails() {
 
 
                   <div>
-                    <span>Çmimi / dhëmb</span>
+                    <span>Mënyra e çmimit</span>
+
+                    <strong>
+                      {
+                        selectedWork.pricing_mode ===
+                        "fixed_total"
+                          ? "Çmim total"
+                          : "Për dhëmb"
+                      }
+                    </strong>
+                  </div>
+
+
+                  <div>
+                    <span>
+                      {
+                        selectedWork.pricing_mode ===
+                        "fixed_total"
+                          ? "Çmimi global"
+                          : "Çmimi / dhëmb"
+                      }
+                    </span>
 
                     <strong>
                       {
                         formatMoney(
-                          selectedWork
-                            .price_per_tooth,
+                          selectedWork.pricing_mode ===
+                          "fixed_total"
+                            ? selectedWork.total_amount
+                            : selectedWork.price_per_tooth,
                         )
                       } €
+                    </strong>
+                  </div>
+
+
+                  <div>
+                    <span>Lloji i punës</span>
+
+                    <strong>
+                      {
+                        selectedWork.is_repeat
+                          ? "Përsëritje"
+                          : "Punë e re"
+                      }
                     </strong>
                   </div>
 
@@ -893,6 +985,20 @@ export default function DoctorDetails() {
                       }
                     </strong>
                   </div>
+
+                </section>
+
+
+                <section className="doctor-work-description">
+
+                  <h3>Përshkrimi i punës</h3>
+
+                  <p>
+                    {
+                      selectedWork.description ??
+                      "Pa përshkrim"
+                    }
+                  </p>
 
                 </section>
 

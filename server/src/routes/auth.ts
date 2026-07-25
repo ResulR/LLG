@@ -3,45 +3,62 @@ import { rateLimit } from "express-rate-limit";
 
 import {
   createToken,
+  verifyToken,
   verifyUser,
 } from "../services/auth.js";
 
-import { requireAuth } from "../middleware/auth.js";
+import {
+  createSession,
+  revokeSession,
+} from "../services/session.js";
+
+import {
+  requireAuth,
+  requireAuthWithoutActivity,
+} from "../middleware/auth.js";
 
 
-const router = Router();
+const router =
+  Router();
 
 
 const cookieSecure =
   process.env.COOKIE_SECURE === "true";
 
 
-const cookieOptions = {
+const sessionCookieOptions = {
   httpOnly:true,
   secure:cookieSecure,
   sameSite:"strict" as const,
-  maxAge:8 * 60 * 60 * 1000,
   path:"/",
 };
 
 
-const loginLimiter = rateLimit({
-  windowMs:15 * 60 * 1000,
-  limit:10,
-  standardHeaders:"draft-8",
-  legacyHeaders:false,
-  skipSuccessfulRequests:true,
+const loginLimiter =
+  rateLimit({
 
-  message:{
-    error:"too_many_login_attempts",
-  },
-});
+    windowMs:
+      15 * 60 * 1000,
+
+    limit:10,
+
+    standardHeaders:"draft-8",
+
+    legacyHeaders:false,
+
+    skipSuccessfulRequests:true,
+
+    message:{
+      error:"too_many_login_attempts",
+    },
+
+  });
 
 
 router.post(
   "/login",
   loginLimiter,
-  async (req, res) => {
+  async (req,res) => {
 
     const username =
       typeof req.body?.username === "string"
@@ -96,20 +113,30 @@ router.post(
       }
 
 
+      const session =
+        await createSession(
+          user.id,
+        );
+
+
       const token =
-        createToken(user.id);
+        createToken(
+          user.id,
+          session.id,
+        );
 
 
       res.cookie(
         "token",
         token,
-        cookieOptions,
+        sessionCookieOptions,
       );
 
 
       return res.json({
         id:user.id,
         username:user.username,
+        session,
       });
 
 
@@ -131,38 +158,85 @@ router.post(
 );
 
 
-router.post("/logout", (_req, res) => {
+router.post(
+  "/logout",
+  async (req,res) => {
 
-  res.clearCookie(
-    "token",
-    {
-      httpOnly:true,
-      secure:cookieSecure,
-      sameSite:"strict",
-      path:"/",
-    },
-  );
+    const token =
+      req.cookies?.token;
 
 
-  return res.json({
-    status:"ok",
-  });
+    if(token) {
 
-});
+      try {
+
+        const payload =
+          verifyToken(token);
 
 
-router.get(
-  "/me",
-  requireAuth,
-  (req, res) => {
+        await revokeSession(
+          payload.sessionId,
+          payload.userId,
+        );
+
+
+      } catch(error) {
+
+        console.warn(
+          "Logout session revocation skipped",
+          error instanceof Error
+            ? error.message
+            : "unknown_error",
+        );
+
+      }
+
+    }
+
+
+    res.clearCookie(
+      "token",
+      sessionCookieOptions,
+    );
+
 
     return res.json({
-      authenticated:true,
-      user:req.user,
+      status:"ok",
     });
 
   },
 );
 
 
-export { router as authRouter };
+router.post(
+  "/activity",
+  requireAuth,
+  (req,res) => {
+
+    return res.json({
+      status:"ok",
+      session:req.sessionInfo,
+    });
+
+  },
+);
+
+
+router.get(
+  "/me",
+  requireAuthWithoutActivity,
+  (req,res) => {
+
+    return res.json({
+      authenticated:true,
+      user:req.user,
+      session:req.sessionInfo,
+    });
+
+  },
+);
+
+
+export {
+  router as authRouter,
+};

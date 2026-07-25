@@ -19,7 +19,10 @@ import {
 } from "react-router-dom";
 
 import Layout from "@/components/Layout";
+import MaterialsManager from "@/components/MaterialsManager";
+import ColorsManager from "@/components/ColorsManager";
 import { api } from "@/lib/api";
+import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 
 
 type Doctor = {
@@ -71,6 +74,55 @@ export default function Doctors() {
 
   const [messageType,setMessageType] =
     useState<MessageType>("");
+
+
+  const doctorFormIsDirty =
+    useMemo(
+      ()=>{
+
+        if(editingId === null) {
+
+          return Boolean(
+            name.trim() ||
+            phone.trim(),
+          );
+
+        }
+
+
+        const originalDoctor =
+          doctors.find(
+            (doctor)=>
+              doctor.id === editingId,
+          );
+
+
+        if(!originalDoctor) {
+          return false;
+        }
+
+
+        return (
+          name !== originalDoctor.name ||
+          phone !== (
+            originalDoctor.phone ?? ""
+          )
+        );
+
+      },
+      [
+        doctors,
+        editingId,
+        name,
+        phone,
+      ],
+    );
+
+
+  useUnsavedChanges(
+    "doctors-form",
+    doctorFormIsDirty,
+  );
 
 
   async function loadDoctors() {
@@ -899,6 +951,11 @@ export default function Doctors() {
           </article>
 
         </section>
+
+
+        <MaterialsManager />
+
+        <ColorsManager />
 
       </main>
 

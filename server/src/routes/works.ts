@@ -23,7 +23,10 @@ router.get("/references", requireAuth, async (_req, res) => {
   `);
 
   const materials = await pool.query(`
-    SELECT id, name
+    SELECT
+      id,
+      name,
+      active
     FROM materials
     WHERE active = true
     ORDER BY name
@@ -47,9 +50,20 @@ router.get("/references", requireAuth, async (_req, res) => {
 
 
 
-router.get("/", requireAuth, async (_req, res) => {
+router.get("/", requireAuth, async (req, res) => {
 
-  const result = await pool.query(`
+  const selectedMonth =
+    String(
+      req.query.month ?? "",
+    ).trim();
+
+  const validMonth =
+    /^\d{4}-\d{2}$/.test(
+      selectedMonth,
+    );
+
+  const result = await pool.query(
+    `
 
     SELECT
       w.id,
@@ -61,6 +75,9 @@ router.get("/", requireAuth, async (_req, res) => {
       w.month,
       w.monthly_number,
       w.work_date,
+      w.description,
+      w.is_repeat,
+      w.pricing_mode,
       w.price_per_tooth,
       w.total_amount,
       w.status,
@@ -100,6 +117,23 @@ router.get("/", requireAuth, async (_req, res) => {
     LEFT JOIN work_teeth wt
       ON wt.work_id = w.id
 
+    WHERE (
+      $1::text IS NULL
+      OR (
+        w.work_date >=
+          TO_DATE(
+            $1 || '-01',
+            'YYYY-MM-DD'
+          )
+        AND w.work_date <
+          TO_DATE(
+            $1 || '-01',
+            'YYYY-MM-DD'
+          )
+          + INTERVAL '1 month'
+      )
+    )
+
     GROUP BY
       w.id,
       d.name,
@@ -110,7 +144,13 @@ router.get("/", requireAuth, async (_req, res) => {
 
     ORDER BY w.created_at DESC
 
-  `);
+    `,
+    [
+      validMonth
+        ? selectedMonth
+        : null,
+    ],
+  );
 
 
   res.json(result.rows);
@@ -129,6 +169,9 @@ router.post("/", requireAuth, async (req, res) => {
     teeth,
     material_id,
     color_id,
+    description,
+    is_repeat,
+    pricing_mode,
     price_per_tooth,
   } = req.body;
 
@@ -140,6 +183,20 @@ router.post("/", requireAuth, async (req, res) => {
 
   const cleanLastName =
     String(patient_last_name || "").trim();
+
+
+  const cleanDescription =
+    String(description ?? "").trim();
+
+
+  const isRepeat =
+    is_repeat === true;
+
+
+  const pricingMode =
+    pricing_mode === "fixed_total"
+      ? "fixed_total"
+      : "per_tooth";
 
 
 
@@ -158,6 +215,16 @@ router.post("/", requireAuth, async (req, res) => {
 
     return res.status(400).json({
       error:"missing_fields",
+    });
+
+  }
+
+
+
+  if(cleanDescription.length > 2000) {
+
+    return res.status(400).json({
+      error:"description_too_long",
     });
 
   }
@@ -200,6 +267,83 @@ router.post("/", requireAuth, async (req, res) => {
   try {
 
     await client.query("BEGIN");
+
+
+    const doctorReference =
+      await client.query(
+        `
+          SELECT id
+          FROM doctors
+          WHERE id = $1
+            AND active = true
+        `,
+        [doctor_id],
+      );
+
+
+    if(doctorReference.rowCount === 0) {
+
+      await client.query("ROLLBACK");
+
+      return res.status(400).json({
+        error:"invalid_doctor",
+      });
+
+    }
+
+
+    if(material_id) {
+
+      const materialReference =
+        await client.query(
+          `
+            SELECT id
+            FROM materials
+            WHERE id = $1
+              AND active = true
+          `,
+          [material_id],
+        );
+
+
+      if(materialReference.rowCount === 0) {
+
+        await client.query("ROLLBACK");
+
+        return res.status(400).json({
+          error:"invalid_material",
+        });
+
+      }
+
+    }
+
+
+    if(color_id) {
+
+      const colorReference =
+        await client.query(
+          `
+            SELECT id
+            FROM colors
+            WHERE id = $1
+              AND active = true
+          `,
+          [color_id],
+        );
+
+
+      if(colorReference.rowCount === 0) {
+
+        await client.query("ROLLBACK");
+
+        return res.status(400).json({
+          error:"invalid_color",
+        });
+
+      }
+
+    }
 
 
 
@@ -299,8 +443,16 @@ router.post("/", requireAuth, async (req, res) => {
 
 
 
+    const storedPricePerTooth =
+      pricingMode === "per_tooth"
+        ? price
+        : 0;
+
+
     const total =
-      price * teeth.length;
+      pricingMode === "fixed_total"
+        ? price
+        : price * teeth.length;
 
 
 
@@ -314,13 +466,16 @@ router.post("/", requireAuth, async (req, res) => {
         monthly_number,
         material_id,
         color_id,
+        description,
+        is_repeat,
+        pricing_mode,
         price_per_tooth,
         total_amount,
         status
       )
 
       VALUES(
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,'active'
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active'
       )
 
       RETURNING *
@@ -333,7 +488,10 @@ router.post("/", requireAuth, async (req, res) => {
         monthlyNumber,
         material_id || null,
         color_id || null,
-        price,
+        cleanDescription || null,
+        isRepeat,
+        pricingMode,
+        storedPricePerTooth,
         total,
       ],
     );
@@ -404,6 +562,9 @@ router.put("/:id", requireAuth, async (req, res) => {
     teeth,
     material_id,
     color_id,
+    description,
+    is_repeat,
+    pricing_mode,
     price_per_tooth,
   } = req.body;
 
@@ -429,6 +590,17 @@ router.put("/:id", requireAuth, async (req, res) => {
 
   const cleanLastName =
     String(patient_last_name ?? "").trim();
+
+  const cleanDescription =
+    String(description ?? "").trim();
+
+  const isRepeat =
+    is_repeat === true;
+
+  const pricingMode =
+    pricing_mode === "fixed_total"
+      ? "fixed_total"
+      : "per_tooth";
 
   const price = Number(price_per_tooth);
 
@@ -456,6 +628,15 @@ router.put("/:id", requireAuth, async (req, res) => {
 
     return res.status(400).json({
       error:"missing_fields",
+    });
+
+  }
+
+
+  if(cleanDescription.length > 2000){
+
+    return res.status(400).json({
+      error:"description_too_long",
     });
 
   }
@@ -552,7 +733,9 @@ router.put("/:id", requireAuth, async (req, res) => {
 
     const existingWork = await client.query(
       `
-      SELECT id
+      SELECT
+        id,
+        material_id
       FROM works
       WHERE id = $1
       FOR UPDATE
@@ -597,7 +780,9 @@ router.put("/:id", requireAuth, async (req, res) => {
 
       const material = await client.query(
         `
-        SELECT id
+        SELECT
+          id,
+          active
         FROM materials
         WHERE id = $1
         `,
@@ -605,7 +790,21 @@ router.put("/:id", requireAuth, async (req, res) => {
       );
 
 
-      if(material.rowCount === 0){
+      const existingMaterialId =
+        existingWork.rows[0].material_id === null
+          ? null
+          : Number(
+              existingWork.rows[0].material_id,
+            );
+
+
+      if(
+        material.rowCount === 0 ||
+        (
+          material.rows[0].active !== true &&
+          materialId !== existingMaterialId
+        )
+      ){
 
         await client.query("ROLLBACK");
 
@@ -690,8 +889,16 @@ router.put("/:id", requireAuth, async (req, res) => {
     }
 
 
+    const storedPricePerTooth =
+      pricingMode === "per_tooth"
+        ? price
+        : 0;
+
+
     const total =
-      price * normalizedTeeth.length;
+      pricingMode === "fixed_total"
+        ? price
+        : price * normalizedTeeth.length;
 
 
     const updatedWork = await client.query(
@@ -703,11 +910,14 @@ router.put("/:id", requireAuth, async (req, res) => {
         patient_id = $2,
         material_id = $3,
         color_id = $4,
-        price_per_tooth = $5,
-        total_amount = $6,
+        description = $5,
+        is_repeat = $6,
+        pricing_mode = $7,
+        price_per_tooth = $8,
+        total_amount = $9,
         updated_at = NOW()
 
-      WHERE id = $7
+      WHERE id = $10
 
       RETURNING *
       `,
@@ -716,7 +926,10 @@ router.put("/:id", requireAuth, async (req, res) => {
         patientId,
         materialId,
         colorId,
-        price,
+        cleanDescription || null,
+        isRepeat,
+        pricingMode,
+        storedPricePerTooth,
         total,
         workId,
       ],

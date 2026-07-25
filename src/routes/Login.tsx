@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
 } from "react";
 
@@ -42,6 +43,41 @@ export default function Login() {
 
   const [loading,setLoading] =
     useState(false);
+
+
+  useEffect(
+    ()=>{
+
+      setPassword("");
+      setShowPassword(false);
+
+
+      function clearPasswordOnPageRestore() {
+
+        setPassword("");
+        setShowPassword(false);
+
+      }
+
+
+      window.addEventListener(
+        "pageshow",
+        clearPasswordOnPageRestore,
+      );
+
+
+      return ()=>{
+
+        window.removeEventListener(
+          "pageshow",
+          clearPasswordOnPageRestore,
+        );
+
+      };
+
+    },
+    [],
+  );
 
 
   if(!authLoading && user) {
@@ -130,6 +166,8 @@ export default function Login() {
 
     } finally {
 
+      setPassword("");
+      setShowPassword(false);
       setLoading(false);
 
     }
@@ -142,23 +180,6 @@ export default function Login() {
     <main className="login-page">
 
       <section className="login-card">
-
-        <div className="login-brand">
-
-          <span className="login-brand-icon">
-            <span>DT</span>
-          </span>
-
-          <div>
-            <strong>DentalTrack</strong>
-
-            <span>
-              Menaxhimi i laboratorit dentar
-            </span>
-          </div>
-
-        </div>
-
 
         <div className="login-heading">
 
@@ -179,6 +200,9 @@ export default function Login() {
         <form
           className="login-form"
           onSubmit={login}
+          autoComplete="off"
+          data-lpignore="true"
+          data-1p-ignore="true"
         >
 
           <label className="login-field">
@@ -229,6 +253,7 @@ export default function Login() {
                     ? "text"
                     : "password"
                 }
+                name="dentaltrack-session-secret"
                 value={password}
                 onChange={(event)=>
                   setPassword(
@@ -236,7 +261,11 @@ export default function Login() {
                   )
                 }
                 placeholder="Shkruani fjalëkalimin"
-                autoComplete="current-password"
+                autoComplete="new-password"
+                autoCapitalize="none"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
                 disabled={loading}
                 required
               />

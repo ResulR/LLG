@@ -11,6 +11,8 @@ import { dashboardRouter } from "./routes/dashboard.js";
 import { doctorsRouter } from "./routes/doctors.js";
 import { worksRouter } from "./routes/works.js";
 import { paymentsRouter } from "./routes/payments.js";
+import { materialsRouter } from "./routes/materials.js";
+import { colorsRouter } from "./routes/colors.js";
 
 import { requireAuth } from "./middleware/auth.js";
 
@@ -68,6 +70,16 @@ app.use(
 app.use(
   "/api/payments",
   paymentsRouter,
+);
+
+app.use(
+  "/api/materials",
+  materialsRouter,
+);
+
+app.use(
+  "/api/colors",
+  colorsRouter,
 );
 
 

@@ -48,6 +48,21 @@ router.get(
     const doctorId =
       Number(req.params.id);
 
+    const selectedMonth =
+      String(
+        req.query.month ?? "",
+      ).trim();
+
+    const validMonth =
+      /^\d{4}-\d{2}$/.test(
+        selectedMonth,
+      );
+
+    const monthParameter =
+      validMonth
+        ? selectedMonth
+        : null;
+
 
     if(
       !Number.isInteger(doctorId) ||
@@ -92,14 +107,97 @@ router.get(
 
       const summaryResult = await pool.query(
         `
+        WITH individual_payments AS (
+          SELECT
+            work_id,
+            COALESCE(SUM(amount), 0)
+              AS paid_amount
+
+          FROM payments
+
+          WHERE payment_type = 'individual'
+            AND work_id IS NOT NULL
+
+          GROUP BY work_id
+        ),
+
+        work_finances AS (
+          SELECT
+            COALESCE(
+              SUM(w.total_amount)
+                FILTER (
+                  WHERE w.status = 'active'
+                ),
+              0
+            ) AS active_work_total,
+
+            COALESCE(
+              SUM(
+                CASE
+                  WHEN w.status = 'active'
+                    AND w.payment_status IN (
+                      'unpaid',
+                      'partial'
+                    )
+                  THEN GREATEST(
+                    w.total_amount
+                      - COALESCE(
+                          ip.paid_amount,
+                          0
+                        ),
+                    0
+                  )
+
+                  ELSE 0
+                END
+              ),
+              0
+            ) AS open_work_balance
+
+          FROM works w
+
+          LEFT JOIN individual_payments ip
+            ON ip.work_id = w.id
+
+          WHERE w.doctor_id = $1
+        ),
+
+        settlement_total AS (
+          SELECT
+            COALESCE(
+              SUM(works_total),
+              0
+            ) AS total
+
+          FROM doctor_settlements
+
+          WHERE doctor_id = $1
+        ),
+
+        global_operations AS (
+          SELECT
+            COALESCE(
+              SUM(adjustment_amount),
+              0
+            ) AS adjustment_total,
+
+            COALESCE(
+              SUM(
+                amount + adjustment_amount
+              ),
+              0
+            ) AS covered_total
+
+          FROM payments
+
+          WHERE doctor_id = $1
+            AND payment_type = 'global'
+        )
+
         SELECT
-          COALESCE(
-            (
-              SELECT SUM(total_amount)
-              FROM works
-              WHERE doctor_id = $1
-                AND status = 'active'
-            ),
+          GREATEST(
+            wf.active_work_total
+              - go.adjustment_total,
             0
           ) AS total_billed,
 
@@ -112,25 +210,11 @@ router.get(
             0
           ) AS total_paid,
 
+          wf.open_work_balance
+          +
           GREATEST(
-            COALESCE(
-              (
-                SELECT SUM(total_amount)
-                FROM works
-                WHERE doctor_id = $1
-                  AND status = 'active'
-              ),
-              0
-            )
-            -
-            COALESCE(
-              (
-                SELECT SUM(amount)
-                FROM payments
-                WHERE doctor_id = $1
-              ),
-              0
-            ),
+            st.total
+              - go.covered_total,
             0
           ) AS outstanding_balance,
 
@@ -152,6 +236,10 @@ router.get(
             FROM payments
             WHERE doctor_id = $1
           )::int AS payment_count
+
+        FROM work_finances wf
+        CROSS JOIN settlement_total st
+        CROSS JOIN global_operations go
         `,
         [doctorId],
       );
@@ -159,55 +247,18 @@ router.get(
 
       const worksResult = await pool.query(
         `
-        WITH payment_total AS (
+        WITH individual_payments AS (
           SELECT
-            COALESCE(SUM(amount), 0) AS total_paid
+            work_id,
+            COALESCE(SUM(amount), 0)
+              AS paid_amount
+
           FROM payments
-          WHERE doctor_id = $1
-        ),
 
-        ordered_active_works AS (
-          SELECT
-            w.id,
+          WHERE payment_type = 'individual'
+            AND work_id IS NOT NULL
 
-            COALESCE(
-              SUM(w.total_amount) OVER (
-                ORDER BY
-                  w.work_date,
-                  w.id
-
-                ROWS BETWEEN
-                  UNBOUNDED PRECEDING
-                  AND 1 PRECEDING
-              ),
-              0
-            ) AS previous_billed
-
-          FROM works w
-
-          WHERE w.doctor_id = $1
-            AND w.status = 'active'
-        ),
-
-        allocations AS (
-          SELECT
-            oaw.id,
-
-            GREATEST(
-              LEAST(
-                w.total_amount,
-                pt.total_paid
-                  - oaw.previous_billed
-              ),
-              0
-            ) AS paid_amount
-
-          FROM ordered_active_works oaw
-
-          JOIN works w
-            ON w.id = oaw.id
-
-          CROSS JOIN payment_total pt
+          GROUP BY work_id
         )
 
         SELECT
@@ -220,9 +271,14 @@ router.get(
           w.month,
           w.monthly_number,
           w.work_date,
+          w.description,
+          w.is_repeat,
+          w.pricing_mode,
           w.price_per_tooth,
+          w.original_total_amount,
           w.total_amount,
           w.status,
+          w.payment_status,
           w.created_at,
 
           p.first_name,
@@ -234,29 +290,44 @@ router.get(
           CASE
             WHEN w.status = 'cancelled'
               THEN 0
-            ELSE COALESCE(a.paid_amount, 0)
+
+            WHEN w.payment_status =
+              'closed_global'
+              THEN w.total_amount
+
+            ELSE LEAST(
+              COALESCE(
+                ip.paid_amount,
+                0
+              ),
+              w.total_amount
+            )
           END AS paid_amount,
 
           CASE
             WHEN w.status = 'cancelled'
               THEN 0
-            ELSE
+
+            WHEN w.payment_status =
+              'closed_global'
+              THEN 0
+
+            ELSE GREATEST(
               w.total_amount
-              - COALESCE(a.paid_amount, 0)
+                - COALESCE(
+                    ip.paid_amount,
+                    0
+                  ),
+              0
+            )
           END AS remaining_amount,
 
           CASE
             WHEN w.status = 'cancelled'
               THEN 'cancelled'
 
-            WHEN COALESCE(a.paid_amount, 0) >= w.total_amount
-              THEN 'paid'
-
-            WHEN COALESCE(a.paid_amount, 0) > 0
-              THEN 'partial'
-
-            ELSE 'unpaid'
-          END AS payment_status,
+            ELSE w.payment_status
+          END AS displayed_payment_status,
 
           COALESCE(
             JSON_AGG(
@@ -289,10 +360,26 @@ router.get(
         LEFT JOIN work_teeth wt
           ON wt.work_id = w.id
 
-        LEFT JOIN allocations a
-          ON a.id = w.id
+        LEFT JOIN individual_payments ip
+          ON ip.work_id = w.id
 
         WHERE w.doctor_id = $1
+          AND (
+            $2::text IS NULL
+            OR (
+              w.work_date >=
+                TO_DATE(
+                  $2 || '-01',
+                  'YYYY-MM-DD'
+                )
+              AND w.work_date <
+                TO_DATE(
+                  $2 || '-01',
+                  'YYYY-MM-DD'
+                )
+                + INTERVAL '1 month'
+            )
+          )
 
         GROUP BY
           w.id,
@@ -300,14 +387,28 @@ router.get(
           p.last_name,
           m.name,
           c.name,
-          a.paid_amount
+          ip.paid_amount
 
         ORDER BY
           w.work_date DESC,
           w.id DESC
         `,
-        [doctorId],
+        [
+          doctorId,
+          monthParameter,
+        ],
       );
+
+
+      const normalizedWorks =
+        worksResult.rows.map(
+          (work)=>({
+            ...work,
+
+            payment_status:
+              work.displayed_payment_status,
+          }),
+        );
 
 
       const paymentsResult = await pool.query(
@@ -323,19 +424,38 @@ router.get(
         FROM payments
 
         WHERE doctor_id = $1
+          AND (
+            $2::text IS NULL
+            OR (
+              payment_date >=
+                TO_DATE(
+                  $2 || '-01',
+                  'YYYY-MM-DD'
+                )
+              AND payment_date <
+                TO_DATE(
+                  $2 || '-01',
+                  'YYYY-MM-DD'
+                )
+                + INTERVAL '1 month'
+            )
+          )
 
         ORDER BY
           payment_date DESC,
           id DESC
         `,
-        [doctorId],
+        [
+          doctorId,
+          monthParameter,
+        ],
       );
 
 
       return res.json({
         doctor:doctorResult.rows[0],
         summary:summaryResult.rows[0],
-        works:worksResult.rows,
+        works:normalizedWorks,
         payments:paymentsResult.rows,
       });
 

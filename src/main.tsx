@@ -15,6 +15,7 @@ import Works from "@/routes/Works";
 import Payments from "@/routes/Payments";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { AuthProvider } from "@/context/AuthContext";
+import { MonthProvider } from "@/context/MonthContext";
 
 function App() {
   return (
@@ -90,7 +91,9 @@ ReactDOM.createRoot(
   <React.StrictMode>
     <BrowserRouter basename="/dentaltrack">
       <AuthProvider>
-        <App />
+        <MonthProvider>
+          <App />
+        </MonthProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

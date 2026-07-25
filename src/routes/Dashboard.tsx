@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 
 import Layout from "@/components/Layout";
+import { useMonth } from "@/context/MonthContext";
 import { api } from "@/lib/api";
 
 
@@ -41,6 +42,8 @@ type RecentWork = {
   month:number;
   monthly_number:number;
   work_date:string;
+  description:string|null;
+  is_repeat:boolean;
   total_amount:string;
   status:"active"|"cancelled";
   doctor_name:string;
@@ -139,6 +142,10 @@ export default function Dashboard() {
 
   const navigate = useNavigate();
 
+  const {
+    selectedMonth,
+  } = useMonth();
+
   const [data,setData] =
     useState<DashboardData|null>(null);
 
@@ -164,7 +171,11 @@ export default function Dashboard() {
     try {
 
       const response =
-        await api("/dashboard");
+        await api(
+          `/dashboard?month=${encodeURIComponent(
+            selectedMonth,
+          )}`,
+        );
 
 
       if(!response.ok) {
@@ -201,7 +212,9 @@ export default function Dashboard() {
 
     loadDashboard();
 
-  },[]);
+  },[
+    selectedMonth,
+  ]);
 
 
   const filteredReceivables = useMemo(()=>{
@@ -780,12 +793,35 @@ export default function Dashboard() {
                     >
 
                       <div>
-                        <strong>{getWorkNumber(work)}</strong>
+                        <div className="simple-dashboard-work-title">
+
+                          <strong>{getWorkNumber(work)}</strong>
+
+                          {work.is_repeat && (
+                            <span className="works-repeat-badge">
+                              Përsëritje
+                            </span>
+                          )}
+
+                        </div>
 
                         <span>
                           {work.first_name}{" "}
                           {work.last_name}
                         </span>
+
+                        <small
+                          className="simple-dashboard-work-description"
+                          title={
+                            work.description ??
+                            "Pa përshkrim"
+                          }
+                        >
+                          {
+                            work.description ??
+                            "Pa përshkrim"
+                          }
+                        </small>
                       </div>
 
 

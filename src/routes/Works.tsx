@@ -5,7 +5,9 @@ import {
 } from "react";
 
 import Layout from "@/components/Layout";
+import { useMonth } from "@/context/MonthContext";
 import { api } from "@/lib/api";
+import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 
 
 type Doctor = {
@@ -17,6 +19,7 @@ type Doctor = {
 type Material = {
   id:string;
   name:string;
+  active:boolean;
 };
 
 
@@ -42,6 +45,9 @@ type Work = {
   month:number;
   monthly_number:number;
   work_date:string;
+  description:string|null;
+  is_repeat:boolean;
+  pricing_mode:"per_tooth"|"fixed_total";
   price_per_tooth:string;
   first_name:string;
   last_name:string;
@@ -132,7 +138,35 @@ function cycleTooth(
 }
 
 
+function serializeTeeth(
+  teeth:ToothSelection[],
+) {
+
+  return teeth
+    .map(
+      (tooth)=>({
+        number:tooth.number,
+        is_antar:tooth.is_antar,
+      }),
+    )
+    .sort(
+      (first,second)=>
+        first.number - second.number,
+    )
+    .map(
+      (tooth)=>
+        `${tooth.number}:${tooth.is_antar}`,
+    )
+    .join("|");
+
+}
+
+
 export default function Works(){
+
+  const {
+    selectedMonth,
+  } = useMonth();
 
   const [doctors,setDoctors]=useState<Doctor[]>([]);
   const [materials,setMaterials]=useState<Material[]>([]);
@@ -146,6 +180,12 @@ export default function Works(){
   const [lastName,setLastName]=useState("");
   const [materialId,setMaterialId]=useState("");
   const [colorId,setColorId]=useState("");
+  const [description,setDescription]=useState("");
+  const [isRepeat,setIsRepeat]=useState(false);
+  const [pricingMode,setPricingMode]=
+    useState<"per_tooth"|"fixed_total">(
+      "per_tooth"
+    );
   const [price,setPrice]=useState("");
   const [selectedTeeth,setSelectedTeeth]=useState<
     ToothSelection[]
@@ -177,12 +217,173 @@ export default function Works(){
   const [editLastName,setEditLastName]=useState("");
   const [editMaterialId,setEditMaterialId]=useState("");
   const [editColorId,setEditColorId]=useState("");
+  const [editDescription,setEditDescription]=useState("");
+  const [editIsRepeat,setEditIsRepeat]=useState(false);
+  const [editPricingMode,setEditPricingMode]=
+    useState<"per_tooth"|"fixed_total">(
+      "per_tooth"
+    );
   const [editPrice,setEditPrice]=useState("");
   const [editTeeth,setEditTeeth]=useState<
     ToothSelection[]
   >([]);
   const [editMessage,setEditMessage]=useState("");
   const [isEditing,setIsEditing]=useState(false);
+
+
+  const createWorkIsDirty =
+    Boolean(
+      doctorId ||
+      firstName.trim() ||
+      lastName.trim() ||
+      materialId ||
+      colorId ||
+      description.trim() ||
+      isRepeat ||
+      pricingMode !== "per_tooth" ||
+      price ||
+      selectedTeeth.length > 0,
+    );
+
+
+  const editWorkIsDirty =
+    useMemo(
+      ()=>{
+
+        if(!editingWork) {
+          return false;
+        }
+
+
+        return (
+          editDoctorId !==
+            String(editingWork.doctor_id) ||
+
+          editFirstName !==
+            editingWork.first_name ||
+
+          editLastName !==
+            editingWork.last_name ||
+
+          editMaterialId !==
+            (
+              editingWork.material_id
+                ? String(
+                    editingWork.material_id,
+                  )
+                : ""
+            ) ||
+
+          editColorId !==
+            (
+              editingWork.color_id
+                ? String(
+                    editingWork.color_id,
+                  )
+                : ""
+            ) ||
+
+          editDescription !==
+            (
+              editingWork.description ?? ""
+            ) ||
+
+          editIsRepeat !==
+            editingWork.is_repeat ||
+
+          editPricingMode !==
+            editingWork.pricing_mode ||
+
+          editPrice !==
+            String(
+              editingWork.pricing_mode ===
+              "fixed_total"
+                ? editingWork.total_amount
+                : editingWork.price_per_tooth
+            ) ||
+
+          serializeTeeth(editTeeth) !==
+            serializeTeeth(
+              editingWork.teeth,
+            )
+        );
+
+      },
+      [
+        editColorId,
+        editDescription,
+        editDoctorId,
+        editIsRepeat,
+        editPricingMode,
+        editFirstName,
+        editLastName,
+        editMaterialId,
+        editPrice,
+        editTeeth,
+        editingWork,
+      ],
+    );
+
+
+  useUnsavedChanges(
+    "works-create-form",
+    createWorkIsDirty,
+  );
+
+  useUnsavedChanges(
+    "works-edit-form",
+    editWorkIsDirty,
+  );
+
+
+  const editMaterials =
+    useMemo(
+      ()=>{
+
+        if(
+          !editingWork?.material_id ||
+          !editingWork.material_name
+        ) {
+          return materials;
+        }
+
+
+        const currentMaterialExists =
+          materials.some(
+            (material)=>
+              String(material.id) ===
+              String(
+                editingWork.material_id,
+              ),
+          );
+
+
+        if(currentMaterialExists) {
+          return materials;
+        }
+
+
+        return [
+          ...materials,
+
+          {
+            id:String(
+              editingWork.material_id,
+            ),
+
+            name:
+              `${editingWork.material_name} (jo aktiv)`,
+
+            active:false,
+          },
+        ];
+
+      },
+      [
+        editingWork,
+        materials,
+      ],
+    );
 
 
   async function loadData(){
@@ -196,7 +397,11 @@ export default function Works(){
         worksResponse,
       ] = await Promise.all([
         api("/works/references"),
-        api("/works"),
+        api(
+          `/works?month=${encodeURIComponent(
+            selectedMonth,
+          )}`,
+        ),
       ]);
 
 
@@ -248,7 +453,9 @@ export default function Works(){
 
     loadData();
 
-  },[]);
+  },[
+    selectedMonth,
+  ]);
 
 
   useEffect(()=>{
@@ -272,6 +479,17 @@ export default function Works(){
 
 
       if(editingWork){
+
+        if(editWorkIsDirty){
+
+          setEditMessage(
+            "Nuk mund ta mbyllni me Esc sepse ka ndryshime të paruajtura. Ruajini ose përdorni butonin Anulo.",
+          );
+
+          return;
+
+        }
+
 
         setEditingWork(null);
         setEditMessage("");
@@ -303,7 +521,11 @@ export default function Works(){
 
     };
 
-  },[selectedWork,editingWork]);
+  },[
+    selectedWork,
+    editingWork,
+    editWorkIsDirty,
+  ]);
 
 
   const selectedAntarCount = useMemo(
@@ -315,8 +537,19 @@ export default function Works(){
 
 
   const totalAmount = useMemo(
-    ()=>Number(price || 0) * selectedTeeth.length,
-    [price,selectedTeeth]
+    ()=>{
+      const numericPrice =
+        Number(price || 0);
+
+      return pricingMode === "fixed_total"
+        ? numericPrice
+        : numericPrice * selectedTeeth.length;
+    },
+    [
+      price,
+      pricingMode,
+      selectedTeeth,
+    ]
   );
 
 
@@ -335,6 +568,7 @@ export default function Works(){
         work.doctor_name,
         work.material_name ?? "",
         work.color_name ?? "",
+        work.description ?? "",
       ]
         .join(" ")
         .toLowerCase();
@@ -468,6 +702,9 @@ export default function Works(){
     const cleanLastName =
       lastName.trim();
 
+    const cleanDescription =
+      description.trim();
+
     const numericPrice =
       Number(price);
 
@@ -492,6 +729,17 @@ export default function Works(){
     }
 
 
+    if(cleanDescription.length > 2000){
+
+      setFormMessage(
+        "Përshkrimi nuk mund të ketë më shumë se 2000 karaktere."
+      );
+      setFormMessageType("error");
+      return;
+
+    }
+
+
     if(selectedTeeth.length === 0){
 
       setFormMessage(
@@ -509,7 +757,9 @@ export default function Works(){
     ){
 
       setFormMessage(
-        "Çmimi për dhëmb duhet të jetë më i madh se 0."
+        pricingMode === "fixed_total"
+          ? "Çmimi total duhet të jetë më i madh se 0."
+          : "Çmimi për dhëmb duhet të jetë më i madh se 0."
       );
       setFormMessageType("error");
       return;
@@ -536,6 +786,9 @@ export default function Works(){
             color_id:colorId
               ? Number(colorId)
               : null,
+            description:cleanDescription,
+            is_repeat:isRepeat,
+            pricing_mode:pricingMode,
             price_per_tooth:numericPrice,
             teeth:selectedTeeth,
           }),
@@ -562,6 +815,11 @@ export default function Works(){
               "Çmimi nuk është valid.";
           }
 
+          if(data?.error === "description_too_long"){
+            message =
+              "Përshkrimi nuk mund të ketë më shumë se 2000 karaktere.";
+          }
+
         }catch{
           // Garder le message par défaut.
         }
@@ -579,6 +837,9 @@ export default function Works(){
       setLastName("");
       setMaterialId("");
       setColorId("");
+      setDescription("");
+      setIsRepeat(false);
+      setPricingMode("per_tooth");
       setPrice("");
       setSelectedTeeth([]);
 
@@ -728,8 +989,24 @@ export default function Works(){
         : ""
     );
 
+    setEditDescription(
+      work.description ?? ""
+    );
+
+    setEditIsRepeat(
+      work.is_repeat
+    );
+
+    setEditPricingMode(
+      work.pricing_mode
+    );
+
     setEditPrice(
-      String(work.price_per_tooth)
+      String(
+        work.pricing_mode === "fixed_total"
+          ? work.total_amount
+          : work.price_per_tooth
+      )
     );
 
     setEditTeeth(
@@ -763,6 +1040,9 @@ export default function Works(){
     const cleanLastName =
       editLastName.trim();
 
+    const cleanDescription =
+      editDescription.trim();
+
     const numericPrice =
       Number(editPrice);
 
@@ -775,6 +1055,16 @@ export default function Works(){
 
       setEditMessage(
         "Plotësoni mjekun dhe të dhënat e pacientit."
+      );
+      return;
+
+    }
+
+
+    if(cleanDescription.length > 2000){
+
+      setEditMessage(
+        "Përshkrimi nuk mund të ketë më shumë se 2000 karaktere."
       );
       return;
 
@@ -832,6 +1122,9 @@ export default function Works(){
             color_id:editColorId
               ? Number(editColorId)
               : null,
+            description:cleanDescription,
+            is_repeat:editIsRepeat,
+            pricing_mode:editPricingMode,
             price_per_tooth:numericPrice,
             teeth:editTeeth,
           }),
@@ -1055,9 +1348,105 @@ export default function Works(){
               </div>
 
 
+              <label className="works-field works-description-field">
+
+                <span>Përshkrimi i punës</span>
+
+                <textarea
+                  value={description}
+                  onChange={(event)=>
+                    setDescription(
+                      event.target.value
+                    )
+                  }
+                  placeholder="P.sh. Urë zirkoni, kontroll i kontaktit dhe ngjyrës..."
+                  maxLength={2000}
+                  rows={4}
+                />
+
+                <small>
+                  {description.length}/2000
+                </small>
+
+              </label>
+
+
+              <label className="works-repeat-toggle">
+
+                <input
+                  type="checkbox"
+                  checked={isRepeat}
+                  onChange={(event)=>
+                    setIsRepeat(
+                      event.target.checked
+                    )
+                  }
+                />
+
+                <span className="works-repeat-switch">
+                  <span />
+                </span>
+
+                <span className="works-repeat-copy">
+                  <strong>Punë e përsëritur</strong>
+                  <small>
+                    Aktivizojeni nëse kjo punë është përsëritje.
+                  </small>
+                </span>
+
+              </label>
+
+
+              <div className="works-pricing-block">
+
+                <span className="works-pricing-label">
+                  Mënyra e çmimit
+                </span>
+
+                <div className="works-pricing-options">
+
+                  <button
+                    type="button"
+                    className={
+                      pricingMode === "per_tooth"
+                        ? "is-active"
+                        : ""
+                    }
+                    onClick={()=>
+                      setPricingMode("per_tooth")
+                    }
+                  >
+                    Për dhëmb
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      pricingMode === "fixed_total"
+                        ? "is-active"
+                        : ""
+                    }
+                    onClick={()=>
+                      setPricingMode("fixed_total")
+                    }
+                  >
+                    Çmim total
+                  </button>
+
+                </div>
+
+              </div>
+
+
               <label className="works-field">
 
-                <span>Çmimi / dhëmb</span>
+                <span>
+                  {
+                    pricingMode === "fixed_total"
+                      ? "Çmimi total"
+                      : "Çmimi / dhëmb"
+                  }
+                </span>
 
                 <div className="works-price-input">
                   <span>€</span>
@@ -1374,6 +1763,8 @@ export default function Works(){
                   <th>Mjeku</th>
                   <th>Material</th>
                   <th>Ngjyra</th>
+                  <th>Përshkrimi</th>
+                  <th>Lloji</th>
                   <th>Dhëmbët</th>
                   <th>Statusi</th>
                   <th>Total</th>
@@ -1416,6 +1807,35 @@ export default function Works(){
 
                     <td>
                       {work.color_name ?? "-"}
+                    </td>
+
+                    <td>
+                      <span
+                        className="works-table-description"
+                        title={
+                          work.description ??
+                          "Pa përshkrim"
+                        }
+                      >
+                        {
+                          work.description ??
+                          "Pa përshkrim"
+                        }
+                      </span>
+                    </td>
+
+                    <td>
+                      {
+                        work.is_repeat ? (
+                          <span className="works-repeat-badge">
+                            Përsëritje
+                          </span>
+                        ) : (
+                          <span className="works-standard-badge">
+                            E re
+                          </span>
+                        )
+                      }
                     </td>
 
                     <td>
@@ -1608,6 +2028,17 @@ export default function Works(){
                 </div>
 
                 <div>
+                  <span>Lloji i punës</span>
+                  <strong>
+                    {
+                      selectedWork.is_repeat
+                        ? "Përsëritje"
+                        : "Punë e re"
+                    }
+                  </strong>
+                </div>
+
+                <div>
                   <span>Statusi</span>
                   <strong>
                     {
@@ -1655,11 +2086,34 @@ export default function Works(){
                 </div>
 
                 <div>
-                  <span>Çmimi / dhëmb</span>
+                  <span>Mënyra e çmimit</span>
+                  <strong>
+                    {
+                      selectedWork.pricing_mode ===
+                      "fixed_total"
+                        ? "Çmim total"
+                        : "Për dhëmb"
+                    }
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    {
+                      selectedWork.pricing_mode ===
+                      "fixed_total"
+                        ? "Çmimi global"
+                        : "Çmimi / dhëmb"
+                    }
+                  </span>
+
                   <strong>
                     {
                       Number(
-                        selectedWork.price_per_tooth
+                        selectedWork.pricing_mode ===
+                        "fixed_total"
+                          ? selectedWork.total_amount
+                          : selectedWork.price_per_tooth
                       ).toFixed(2)
                     } €
                   </strong>
@@ -1677,6 +2131,20 @@ export default function Works(){
                 </div>
 
               </div>
+
+
+              <section className="works-detail-description">
+
+                <h3>Përshkrimi i punës</h3>
+
+                <p>
+                  {
+                    selectedWork.description ??
+                    "Pa përshkrim"
+                  }
+                </p>
+
+              </section>
 
 
               <section className="works-detail-teeth-section">
@@ -1858,7 +2326,7 @@ export default function Works(){
                         Pa material
                       </option>
 
-                      {materials.map((material)=>(
+                      {editMaterials.map((material)=>(
                         <option
                           key={material.id}
                           value={material.id}
@@ -1897,8 +2365,106 @@ export default function Works(){
                   </label>
 
 
+                  <label className="works-field works-edit-description-field">
+                    <span>Përshkrimi i punës</span>
+
+                    <textarea
+                      value={editDescription}
+                      onChange={(event)=>
+                        setEditDescription(
+                          event.target.value
+                        )
+                      }
+                      maxLength={2000}
+                      rows={4}
+                      placeholder="Shtoni një përshkrim të punës..."
+                    />
+
+                    <small>
+                      {editDescription.length}/2000
+                    </small>
+                  </label>
+
+
+                  <label className="works-repeat-toggle works-edit-repeat-toggle">
+
+                    <input
+                      type="checkbox"
+                      checked={editIsRepeat}
+                      onChange={(event)=>
+                        setEditIsRepeat(
+                          event.target.checked
+                        )
+                      }
+                    />
+
+                    <span className="works-repeat-switch">
+                      <span />
+                    </span>
+
+                    <span className="works-repeat-copy">
+                      <strong>Punë e përsëritur</strong>
+                      <small>
+                        Aktivizojeni nëse puna është përsëritje.
+                      </small>
+                    </span>
+
+                  </label>
+
+
+                  <div className="works-pricing-block works-edit-pricing-block">
+
+                    <span className="works-pricing-label">
+                      Mënyra e çmimit
+                    </span>
+
+                    <div className="works-pricing-options">
+
+                      <button
+                        type="button"
+                        className={
+                          editPricingMode === "per_tooth"
+                            ? "is-active"
+                            : ""
+                        }
+                        onClick={()=>
+                          setEditPricingMode(
+                            "per_tooth"
+                          )
+                        }
+                      >
+                        Për dhëmb
+                      </button>
+
+                      <button
+                        type="button"
+                        className={
+                          editPricingMode === "fixed_total"
+                            ? "is-active"
+                            : ""
+                        }
+                        onClick={()=>
+                          setEditPricingMode(
+                            "fixed_total"
+                          )
+                        }
+                      >
+                        Çmim total
+                      </button>
+
+                    </div>
+
+                  </div>
+
+
                   <label className="works-field">
-                    <span>Çmimi / dhëmb</span>
+                    <span>
+                      {
+                        editPricingMode === "fixed_total"
+                          ? "Çmimi total"
+                          : "Çmimi / dhëmb"
+                      }
+                    </span>
 
                     <input
                       type="number"
