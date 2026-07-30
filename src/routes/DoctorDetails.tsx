@@ -606,10 +606,6 @@ export default function DoctorDetails() {
                       <tr>
                         <th>Nr.</th>
                         <th>Pacienti</th>
-                        <th>Data</th>
-                        <th>Materiali</th>
-                        <th>Përshkrimi</th>
-                        <th>Lloji</th>
                         <th>Totali</th>
                         <th>Paguar</th>
                         <th>Mbetja</th>
@@ -625,9 +621,27 @@ export default function DoctorDetails() {
 
                         <tr
                           key={work.id}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={
+                            `Hap punën ${getWorkNumber(work)}`
+                          }
                           onClick={()=>
                             setSelectedWork(work)
                           }
+                          onKeyDown={(event)=>{
+
+                            if(
+                              event.key === "Enter" ||
+                              event.key === " "
+                            ) {
+
+                              event.preventDefault();
+                              setSelectedWork(work);
+
+                            }
+
+                          }}
                         >
 
                           <td>
@@ -637,45 +651,26 @@ export default function DoctorDetails() {
                           </td>
 
                           <td>
-                            {work.first_name}{" "}
-                            {work.last_name}
-                          </td>
 
-                          <td>
-                            {formatDate(work.work_date)}
-                          </td>
+                            <div className="doctor-detail-patient-cell">
 
-                          <td>
-                            {work.material_name ?? "-"}
-                          </td>
+                              <strong>
+                                {work.first_name}{" "}
+                                {work.last_name}
+                              </strong>
 
-                          <td>
-                            <span
-                              className="doctor-work-table-description"
-                              title={
-                                work.description ??
-                                "Pa përshkrim"
-                              }
-                            >
-                              {
-                                work.description ??
-                                "Pa përshkrim"
-                              }
-                            </span>
-                          </td>
+                              <span>
+                                {formatDate(work.work_date)}
+                              </span>
 
-                          <td>
-                            {
-                              work.is_repeat ? (
-                                <span className="works-repeat-badge">
+                              {work.is_repeat && (
+                                <small>
                                   Përsëritje
-                                </span>
-                              ) : (
-                                <span className="works-standard-badge">
-                                  E re
-                                </span>
-                              )
-                            }
+                                </small>
+                              )}
+
+                            </div>
+
                           </td>
 
                           <td>
@@ -730,7 +725,7 @@ export default function DoctorDetails() {
                         <tr>
 
                           <td
-                            colSpan={10}
+                            colSpan={6}
                             className="doctor-detail-empty"
                           >
                             Nuk u gjet asnjë punë.
@@ -757,7 +752,9 @@ export default function DoctorDetails() {
                     <h2>Pagesat</h2>
 
                     <p>
-                      Historiku i pagesave
+                      {
+                        data.payments.length
+                      } pagesa të regjistruara
                     </p>
                   </div>
 

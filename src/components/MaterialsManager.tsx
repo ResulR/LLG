@@ -21,6 +21,12 @@ import {
   useUnsavedChanges,
 } from "@/lib/useUnsavedChanges";
 
+import {
+  useConfirm,
+} from "@/context/ConfirmContext";
+
+import AppToast from "@/components/AppToast";
+
 
 type Material = {
   id:number;
@@ -38,6 +44,10 @@ type MessageType =
 
 
 export default function MaterialsManager() {
+
+  const {
+    confirmAction,
+  } = useConfirm();
 
   const [
     materials,
@@ -410,11 +420,27 @@ export default function MaterialsManager() {
 
 
     const confirmed =
-      window.confirm(
-        nextStatus
-          ? `A dëshironi ta aktivizoni materialin ${material.name}?`
-          : `A dëshironi ta çaktivizoni materialin ${material.name}?`,
-      );
+      await confirmAction({
+        title:
+          nextStatus
+            ? "Aktivizo materialin"
+            : "Çaktivizo materialin",
+
+        message:
+          nextStatus
+            ? `A dëshironi ta aktivizoni materialin ${material.name}?`
+            : `A dëshironi ta çaktivizoni materialin ${material.name}?`,
+
+        confirmLabel:
+          nextStatus
+            ? "Aktivizo"
+            : "Çaktivizo",
+
+        tone:
+          nextStatus
+            ? "primary"
+            : "warning",
+      });
 
 
     if(!confirmed) {
@@ -516,9 +542,15 @@ export default function MaterialsManager() {
 
 
     const confirmed =
-      window.confirm(
-        `A dëshironi ta fshini përfundimisht materialin ${material.name}?`,
-      );
+      await confirmAction({
+        title:"Fshi materialin",
+
+        message:
+          `A dëshironi ta fshini përfundimisht materialin ${material.name}? Ky veprim nuk mund të zhbëhet.`,
+
+        confirmLabel:"Fshi",
+        tone:"danger",
+      });
 
 
     if(!confirmed) {
@@ -730,16 +762,20 @@ export default function MaterialsManager() {
 
             {message && (
 
-              <div
-                className={
+              <AppToast
+                message={message}
+                type={
                   messageType === "success"
-                    ? "doctors-message is-success"
-                    : "doctors-message is-error"
+                    ? "success"
+                    : "error"
                 }
-                role="alert"
-              >
-                {message}
-              </div>
+                onClose={()=>{
+
+                  setMessage("");
+                  setMessageType("");
+
+                }}
+              />
 
             )}
 

@@ -1,5 +1,4 @@
 import {
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   RotateCcw,
@@ -66,81 +65,61 @@ export default function MonthNavigator() {
       aria-label="Zgjedhja e muajit"
     >
 
-      <div className="global-month-copy">
+      <button
+        type="button"
+        className="global-month-arrow"
+        onClick={previousMonth}
+        aria-label="Muaji i mëparshëm"
+        title="Muaji i mëparshëm"
+      >
+        <ChevronLeft size={17} />
+      </button>
 
-        <span className="global-month-icon">
-          <CalendarDays size={19} />
+
+      <label className="global-month-picker">
+
+        <span>
+          {formatMonthLabel(
+            selectedMonth,
+          )}
         </span>
 
-        <div>
-          <strong>Periudha e shfaqur</strong>
+        <input
+          type="month"
+          value={selectedMonth}
+          onChange={(event)=>
+            setSelectedMonth(
+              event.target.value,
+            )
+          }
+          aria-label="Zgjidhni muajin"
+        />
 
-          <small>
-            Ndryshoni muajin për të parë
-            të dhënat përkatëse
-          </small>
-        </div>
-
-      </div>
-
-
-      <div className="global-month-controls">
-
-        <button
-          type="button"
-          className="global-month-arrow"
-          onClick={previousMonth}
-          aria-label="Muaji i mëparshëm"
-          title="Muaji i mëparshëm"
-        >
-          <ChevronLeft size={19} />
-        </button>
+      </label>
 
 
-        <label className="global-month-picker">
-
-          <span>
-            {formatMonthLabel(
-              selectedMonth,
-            )}
-          </span>
-
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(event)=>
-              setSelectedMonth(
-                event.target.value,
-              )
-            }
-            aria-label="Zgjidhni muajin"
-          />
-
-        </label>
+      <button
+        type="button"
+        className="global-month-arrow"
+        onClick={nextMonth}
+        aria-label="Muaji i ardhshëm"
+        title="Muaji i ardhshëm"
+      >
+        <ChevronRight size={17} />
+      </button>
 
 
-        <button
-          type="button"
-          className="global-month-arrow"
-          onClick={nextMonth}
-          aria-label="Muaji i ardhshëm"
-          title="Muaji i ardhshëm"
-        >
-          <ChevronRight size={19} />
-        </button>
-
-
+      {!isCurrentMonth && (
         <button
           type="button"
           className="global-month-current"
           onClick={currentMonth}
-          disabled={isCurrentMonth}
+          title="Kthehu te muaji aktual"
         >
-          <RotateCcw size={15} />
-          Ky muaj
+          <RotateCcw size={14} />
+          <span>Ky muaj</span>
         </button>
-
-      </div>
+      )}
 
     </section>
   );

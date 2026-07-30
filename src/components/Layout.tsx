@@ -10,10 +10,10 @@ import {
   ClipboardList,
   CreditCard,
   LogOut,
-  ShieldAlert,
 } from "lucide-react";
 
 import {
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 
@@ -22,6 +22,7 @@ import {
 } from "@/context/AuthContext";
 
 import MonthNavigator from "@/components/MonthNavigator";
+import AppToast from "@/components/AppToast";
 
 import "@/styles/dashboard.css";
 
@@ -50,6 +51,17 @@ export default function Layout({
   const navigate =
     useNavigate();
 
+  const location =
+    useLocation();
+
+  const showMonthNavigator =
+    location.pathname === "/dashboard" ||
+    location.pathname === "/works" ||
+    location.pathname === "/payments" ||
+    /^\/doctors\/[^/]+$/.test(
+      location.pathname,
+    );
+
   const dirtyFormsRef =
     useRef<Set<string>>(
       new Set(),
@@ -57,11 +69,6 @@ export default function Layout({
 
   const logoutRunningRef =
     useRef(false);
-
-  const messageTimerRef =
-    useRef<number|null>(
-      null,
-    );
 
   const [
     escapeMessage,
@@ -108,32 +115,6 @@ export default function Layout({
     setEscapeMessage(
       "Dalja me Esc u bllokua sepse formulari përmban ndryshime të paruajtura. Ruajini ose anuloni ndryshimet fillimisht.",
     );
-
-
-    if(
-      messageTimerRef.current
-      !== null
-    ) {
-
-      window.clearTimeout(
-        messageTimerRef.current,
-      );
-
-    }
-
-
-    messageTimerRef.current =
-      window.setTimeout(
-        ()=>{
-
-          setEscapeMessage("");
-
-          messageTimerRef.current =
-            null;
-
-        },
-        5000,
-      );
 
   }
 
@@ -299,29 +280,6 @@ export default function Layout({
   });
 
 
-  useEffect(
-    ()=>{
-
-      return ()=>{
-
-        if(
-          messageTimerRef.current
-          !== null
-        ) {
-
-          window.clearTimeout(
-            messageTimerRef.current,
-          );
-
-        }
-
-      };
-
-    },
-    [],
-  );
-
-
   return (
     <div className="app-layout">
 
@@ -398,17 +356,23 @@ export default function Layout({
 
         <header className="topbar">
 
-          <span>
-            Paneli kryesor
-          </span>
+          <div className="topbar-context">
+
+            <span>
+              Paneli kryesor
+            </span>
+
+            {showMonthNavigator && (
+              <MonthNavigator />
+            )}
+
+          </div>
 
           <small>
             {user?.userId}
           </small>
 
         </header>
-
-        <MonthNavigator />
 
         {children}
 
@@ -417,25 +381,14 @@ export default function Layout({
 
       {escapeMessage && (
 
-        <div
-          className="escape-logout-message"
-          role="alert"
-          aria-live="assertive"
-        >
-          <span aria-hidden="true">
-            <ShieldAlert size={21} />
-          </span>
-
-          <div>
-            <strong>
-              Dalja u bllokua
-            </strong>
-
-            <p>
-              {escapeMessage}
-            </p>
-          </div>
-        </div>
+        <AppToast
+          message={escapeMessage}
+          type="error"
+          title="Dalja u bllokua"
+          onClose={()=>
+            setEscapeMessage("")
+          }
+        />
 
       )}
 

@@ -5,8 +5,11 @@ import {
 } from "react";
 
 import Layout from "@/components/Layout";
+import AppToast from "@/components/AppToast";
 import { useMonth } from "@/context/MonthContext";
 import { api } from "@/lib/api";
+
+import { useConfirm } from "@/context/ConfirmContext";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 
 
@@ -72,6 +75,12 @@ type Payment = {
 
 type MessageType =
   "success"|"error"|"";
+
+
+type PaymentView =
+  "individual" |
+  "global" |
+  "history";
 
 
 const upperLeft = [18,17,16,15,14,13,12,11];
@@ -313,6 +322,10 @@ function ToothMap({
 export default function Payments() {
 
   const {
+    confirmAction,
+  } = useConfirm();
+
+  const {
     selectedMonth,
   } = useMonth();
 
@@ -408,6 +421,14 @@ export default function Payments() {
 
   const [messageType,setMessageType]=
     useState<MessageType>("");
+
+  const [
+    activeView,
+    setActiveView,
+  ] =
+    useState<PaymentView>(
+      "individual",
+    );
 
 
   const workPaymentIsDirty =
@@ -599,33 +620,6 @@ export default function Payments() {
     doctorFilter,
     selectedMonth,
     sortDirection,
-  ]);
-
-
-  useEffect(()=>{
-
-    if(!message) {
-      return;
-    }
-
-
-    const timeout =
-      window.setTimeout(
-        ()=>{
-
-          setMessage("");
-          setMessageType("");
-
-        },
-        4500,
-      );
-
-
-    return ()=>
-      window.clearTimeout(timeout);
-
-  },[
-    message,
   ]);
 
 
@@ -958,11 +952,19 @@ export default function Payments() {
     }
 
 
-    if(
-      !window.confirm(
-        `Të regjistrohet pagesa për punën ${getWorkNumber(selectedWork)}?`,
-      )
-    ) {
+    const confirmed =
+      await confirmAction({
+        title:"Regjistro pagesën",
+
+        message:
+          `Të regjistrohet pagesa për punën ${getWorkNumber(selectedWork)}?`,
+
+        confirmLabel:"Regjistro",
+        tone:"primary",
+      });
+
+
+    if(!confirmed) {
       return;
     }
 
@@ -1175,11 +1177,26 @@ export default function Payments() {
         : "Të regjistrohet pagesa për borxhin global të mjekut?";
 
 
-    if(
-      !window.confirm(
-        confirmationMessage,
-      )
-    ) {
+    const confirmed =
+      await confirmAction({
+        title:
+          hasSelectedWorks
+            ? "Mbyll punët"
+            : "Regjistro pagesën globale",
+
+        message:
+          confirmationMessage,
+
+        confirmLabel:
+          hasSelectedWorks
+            ? "Mbyll dhe regjistro"
+            : "Regjistro",
+
+        tone:"primary",
+      });
+
+
+    if(!confirmed) {
       return;
     }
 
@@ -1343,48 +1360,22 @@ export default function Payments() {
 
 
         {message && (
-          <div
-            className={
+
+          <AppToast
+            message={message}
+            type={
               messageType === "success"
-                ? "payment-feedback-toast is-success"
-                : "payment-feedback-toast is-error"
+                ? "success"
+                : "error"
             }
-            role="alert"
-            aria-live="polite"
-          >
-            <span className="payment-feedback-toast-icon">
-              {
-                messageType === "success"
-                  ? "✓"
-                  : "!"
-              }
-            </span>
+            onClose={()=>{
 
-            <div>
-              <strong>
-                {
-                  messageType === "success"
-                    ? "Veprimi u krye"
-                    : "Veprimi dështoi"
-                }
-              </strong>
+              setMessage("");
+              setMessageType("");
 
-              <p>{message}</p>
-            </div>
+            }}
+          />
 
-            <button
-              type="button"
-              aria-label="Mbyll mesazhin"
-              onClick={()=>{
-
-                setMessage("");
-                setMessageType("");
-
-              }}
-            >
-              ×
-            </button>
-          </div>
         )}
 
 
@@ -1472,7 +1463,107 @@ export default function Payments() {
         </section>
 
 
-        <section className="payment-work-section">
+        <nav
+          className="payments-view-tabs"
+          role="tablist"
+          aria-label="Seksionet e pagesave"
+        >
+
+          <button
+            id="payments-tab-individual"
+            type="button"
+            role="tab"
+            aria-selected={
+              activeView === "individual"
+            }
+            aria-controls="payments-panel-individual"
+            className={
+              activeView === "individual"
+                ? "is-active"
+                : ""
+            }
+            onClick={()=>
+              setActiveView(
+                "individual",
+              )
+            }
+          >
+            <span>1</span>
+
+            <div>
+              <strong>Sipas punës</strong>
+              <small>Pagesë individuale</small>
+            </div>
+          </button>
+
+
+          <button
+            id="payments-tab-global"
+            type="button"
+            role="tab"
+            aria-selected={
+              activeView === "global"
+            }
+            aria-controls="payments-panel-global"
+            className={
+              activeView === "global"
+                ? "is-active"
+                : ""
+            }
+            onClick={()=>
+              setActiveView(
+                "global",
+              )
+            }
+          >
+            <span>2</span>
+
+            <div>
+              <strong>Pagesë globale</strong>
+              <small>Disa punë së bashku</small>
+            </div>
+          </button>
+
+
+          <button
+            id="payments-tab-history"
+            type="button"
+            role="tab"
+            aria-selected={
+              activeView === "history"
+            }
+            aria-controls="payments-panel-history"
+            className={
+              activeView === "history"
+                ? "is-active"
+                : ""
+            }
+            onClick={()=>
+              setActiveView(
+                "history",
+              )
+            }
+          >
+            <span>3</span>
+
+            <div>
+              <strong>Historiku</strong>
+              <small>Pagesat e regjistruara</small>
+            </div>
+          </button>
+
+        </nav>
+
+
+        <section
+          id="payments-panel-individual"
+          className="payment-work-section"
+          role="tabpanel"
+          aria-labelledby="payments-tab-individual"
+          hidden={
+            activeView !== "individual"
+          }
+        >
 
           <div className="payments-history-header">
 
@@ -1700,7 +1791,15 @@ export default function Payments() {
         </section>
 
 
-        <section className="payment-global-section">
+        <section
+          id="payments-panel-global"
+          className="payment-global-section"
+          role="tabpanel"
+          aria-labelledby="payments-tab-global"
+          hidden={
+            activeView !== "global"
+          }
+        >
 
           <div className="payments-section-title">
 
@@ -2116,7 +2215,15 @@ export default function Payments() {
         </section>
 
 
-        <section className="payments-history-card">
+        <section
+          id="payments-panel-history"
+          className="payments-history-card"
+          role="tabpanel"
+          aria-labelledby="payments-tab-history"
+          hidden={
+            activeView !== "history"
+          }
+        >
 
           <div className="payments-history-header">
 

@@ -5,7 +5,9 @@ import {
 } from "react";
 
 import {
+  Boxes,
   ChevronRight,
+  Palette,
   Pencil,
   Search,
   Stethoscope,
@@ -19,10 +21,12 @@ import {
 } from "react-router-dom";
 
 import Layout from "@/components/Layout";
+import AppToast from "@/components/AppToast";
 import MaterialsManager from "@/components/MaterialsManager";
 import ColorsManager from "@/components/ColorsManager";
 import { api } from "@/lib/api";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+import { useConfirm } from "@/context/ConfirmContext";
 
 
 type Doctor = {
@@ -38,9 +42,19 @@ type MessageType =
   "success"|"error"|"";
 
 
+type DoctorsTab =
+  "doctors" |
+  "materials" |
+  "colors";
+
+
 export default function Doctors() {
 
   const navigate = useNavigate();
+
+  const {
+    confirmAction,
+  } = useConfirm();
 
   const [doctors,setDoctors] =
     useState<Doctor[]>([]);
@@ -74,6 +88,11 @@ export default function Doctors() {
 
   const [messageType,setMessageType] =
     useState<MessageType>("");
+
+  const [activeTab,setActiveTab] =
+    useState<DoctorsTab>(
+      "doctors",
+    );
 
 
   const doctorFormIsDirty =
@@ -372,11 +391,27 @@ export default function Doctors() {
       !doctor.active;
 
     const confirmed =
-      window.confirm(
-        nextStatus
-          ? `A dëshironi ta aktivizoni mjekun ${doctor.name}?`
-          : `A dëshironi ta çaktivizoni mjekun ${doctor.name}?`,
-      );
+      await confirmAction({
+        title:
+          nextStatus
+            ? "Aktivizo mjekun"
+            : "Çaktivizo mjekun",
+
+        message:
+          nextStatus
+            ? `A dëshironi ta aktivizoni mjekun ${doctor.name}?`
+            : `A dëshironi ta çaktivizoni mjekun ${doctor.name}?`,
+
+        confirmLabel:
+          nextStatus
+            ? "Aktivizo"
+            : "Çaktivizo",
+
+        tone:
+          nextStatus
+            ? "primary"
+            : "warning",
+      });
 
 
     if(!confirmed) {
@@ -480,6 +515,93 @@ export default function Doctors() {
 
         </header>
 
+
+        <nav
+          className="doctors-module-tabs"
+          role="tablist"
+          aria-label="Seksionet e menaxhimit"
+        >
+
+          <button
+            id="doctors-tab-doctors"
+            type="button"
+            role="tab"
+            aria-controls="doctors-panel-doctors"
+            className={
+              activeTab === "doctors"
+                ? "is-active"
+                : ""
+            }
+            onClick={()=>
+              setActiveTab("doctors")
+            }
+            aria-selected={
+              activeTab === "doctors"
+            }
+          >
+            <Stethoscope size={18} />
+
+            <span>Mjekët</span>
+          </button>
+
+
+          <button
+            id="doctors-tab-materials"
+            type="button"
+            role="tab"
+            aria-controls="doctors-panel-materials"
+            className={
+              activeTab === "materials"
+                ? "is-active"
+                : ""
+            }
+            onClick={()=>
+              setActiveTab("materials")
+            }
+            aria-selected={
+              activeTab === "materials"
+            }
+          >
+            <Boxes size={18} />
+
+            <span>Materialet</span>
+          </button>
+
+
+          <button
+            id="doctors-tab-colors"
+            type="button"
+            role="tab"
+            aria-controls="doctors-panel-colors"
+            className={
+              activeTab === "colors"
+                ? "is-active"
+                : ""
+            }
+            onClick={()=>
+              setActiveTab("colors")
+            }
+            aria-selected={
+              activeTab === "colors"
+            }
+          >
+            <Palette size={18} />
+
+            <span>Ngjyrat</span>
+          </button>
+
+        </nav>
+
+
+        <section
+          id="doctors-panel-doctors"
+          className="doctors-tab-panel"
+          role="tabpanel"
+          aria-labelledby="doctors-tab-doctors"
+          hidden={
+            activeTab !== "doctors"
+          }
+        >
 
         <section className="doctors-kpi-grid">
 
@@ -625,16 +747,20 @@ export default function Doctors() {
 
               {message && (
 
-                <div
-                  className={
+                <AppToast
+                  message={message}
+                  type={
                     messageType === "success"
-                      ? "doctors-message is-success"
-                      : "doctors-message is-error"
+                      ? "success"
+                      : "error"
                   }
-                  role="alert"
-                >
-                  {message}
-                </div>
+                  onClose={()=>{
+
+                    setMessage("");
+                    setMessageType("");
+
+                  }}
+                />
 
               )}
 
@@ -786,11 +912,32 @@ export default function Doctors() {
                       <tr
                         key={doctor.id}
                         className="doctors-clickable-row"
+                        tabIndex={0}
+                        role="button"
+                        aria-label={
+                          `Hap detajet e mjekut ${doctor.name}`
+                        }
                         onClick={()=>
                           navigate(
                             `/doctors/${doctor.id}`,
                           )
                         }
+                        onKeyDown={(event)=>{
+
+                          if(
+                            event.key === "Enter" ||
+                            event.key === " "
+                          ) {
+
+                            event.preventDefault();
+
+                            navigate(
+                              `/doctors/${doctor.id}`,
+                            );
+
+                          }
+
+                        }}
                       >
 
                         <td>
@@ -952,10 +1099,33 @@ export default function Doctors() {
 
         </section>
 
+        </section>
 
-        <MaterialsManager />
 
-        <ColorsManager />
+        <section
+          id="doctors-panel-materials"
+          className="doctors-tab-panel"
+          role="tabpanel"
+          aria-labelledby="doctors-tab-materials"
+          hidden={
+            activeTab !== "materials"
+          }
+        >
+          <MaterialsManager />
+        </section>
+
+
+        <section
+          id="doctors-panel-colors"
+          className="doctors-tab-panel"
+          role="tabpanel"
+          aria-labelledby="doctors-tab-colors"
+          hidden={
+            activeTab !== "colors"
+          }
+        >
+          <ColorsManager />
+        </section>
 
       </main>
 

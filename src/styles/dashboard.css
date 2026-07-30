@@ -4729,74 +4729,7 @@ body {
   text-align: center;
 }
 
-.escape-logout-message {
-  position: fixed;
-  z-index: 6000;
-  right: 24px;
-  bottom: 24px;
-  display: flex;
-  width: min(460px,calc(100vw - 48px));
-  align-items: flex-start;
-  gap: 13px;
-  padding: 16px 18px;
-  border: 1px solid #f2bcc3;
-  border-radius: 14px;
-  background: #fff7f8;
-  color: #9f2434;
-  box-shadow:
-    0 20px 55px rgba(15,23,42,0.2);
-  animation:
-    escape-message-enter 180ms ease-out;
-}
 
-.escape-logout-message > span {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 10px;
-  background: #ffe5e8;
-  color: #bd293a;
-}
-
-.escape-logout-message strong {
-  display: block;
-  margin-bottom: 4px;
-  color: #a61f31;
-  font-size: 14px;
-}
-
-.escape-logout-message p {
-  margin: 0;
-  color: #7d3540;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-@keyframes escape-message-enter {
-
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-}
-
-@media (max-width: 640px) {
-
-  .escape-logout-message {
-    right: 14px;
-    bottom: 14px;
-    width: calc(100vw - 28px);
-  }
-
-}
 
 
 /* =========================================================
@@ -6022,118 +5955,7 @@ body {
   background: #e8f1ff;
 }
 
-.payment-feedback-toast {
-  position: fixed;
-  z-index: 7000;
-  right: 24px;
-  bottom: 24px;
-  display: grid;
-  width: min(420px,calc(100vw - 48px));
-  grid-template-columns:
-    auto minmax(0,1fr) auto;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 15px 16px;
-  border: 1px solid;
-  border-radius: 14px;
-  box-shadow:
-    0 22px 60px rgba(15,23,42,0.2);
-  animation:
-    payment-feedback-toast-enter
-    180ms ease-out;
-}
 
-.payment-feedback-toast.is-success {
-  border-color: #a8dfc2;
-  background: #f0fbf5;
-  color: #17653f;
-}
-
-.payment-feedback-toast.is-error {
-  border-color: #f0b8c0;
-  background: #fff3f5;
-  color: #a52638;
-}
-
-.payment-feedback-toast-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.payment-feedback-toast.is-success
-  .payment-feedback-toast-icon {
-  background: #d7f3e3;
-  color: #137346;
-}
-
-.payment-feedback-toast.is-error
-  .payment-feedback-toast-icon {
-  background: #ffe0e5;
-  color: #bd293d;
-}
-
-.payment-feedback-toast strong {
-  display: block;
-  margin-bottom: 3px;
-  font-size: 12px;
-}
-
-.payment-feedback-toast p {
-  margin: 0;
-  color: inherit;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.payment-feedback-toast button {
-  display: grid;
-  width: 27px;
-  height: 27px;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: currentColor;
-  font: inherit;
-  font-size: 18px;
-  cursor: pointer;
-  opacity: 0.65;
-}
-
-.payment-feedback-toast button:hover {
-  background: rgba(15,23,42,0.06);
-  opacity: 1;
-}
-
-@keyframes payment-feedback-toast-enter {
-
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-}
-
-@media (max-width: 640px) {
-
-  .payment-feedback-toast {
-    right: 14px;
-    bottom: 14px;
-    width: calc(100vw - 28px);
-  }
-
-}
 
 
 /* =========================================================
@@ -6469,6 +6291,1365 @@ body {
 
   .colors-management {
     margin-top: 20px;
+  }
+
+}
+
+
+/* =========================================================
+   DENTALTRACK DOCTORS MODULE TABS
+   ========================================================= */
+
+.doctors-module-tabs {
+  display: grid;
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+  gap: 7px;
+  margin-bottom: 24px;
+  padding: 6px;
+  border: 1px solid #dce5f1;
+  border-radius: 14px;
+  background: #eef2f7;
+}
+
+.doctors-module-tabs button {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #68788f;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.doctors-module-tabs button:hover {
+  color: #285fc4;
+  background: rgba(255,255,255,0.58);
+}
+
+.doctors-module-tabs button:active {
+  transform: translateY(1px);
+}
+
+.doctors-module-tabs button.is-active {
+  border-color: #d6e1f2;
+  background: #ffffff;
+  color: #245fc9;
+  box-shadow:
+    0 5px 15px rgba(28,55,101,0.1);
+}
+
+.doctors-module-tabs button:focus-visible {
+  outline: 3px solid rgba(47,111,237,0.18);
+  outline-offset: 2px;
+}
+
+.doctors-module-tabs + .materials-management,
+.doctors-module-tabs + .colors-management {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+@media (max-width: 640px) {
+
+  .doctors-module-tabs {
+    gap: 5px;
+    margin-bottom: 18px;
+    padding: 5px;
+  }
+
+  .doctors-module-tabs button {
+    min-height: 44px;
+    gap: 6px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .doctors-module-tabs button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+}
+
+@media (max-width: 420px) {
+
+  .doctors-module-tabs button {
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 4px;
+    line-height: 1;
+  }
+
+}
+
+
+/* =========================================================
+   DENTALTRACK COMPACT MONTH NAVIGATOR
+   ========================================================= */
+
+.topbar {
+  gap: 18px;
+}
+
+.topbar-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 18px;
+}
+
+.topbar-context > span {
+  flex: 0 0 auto;
+}
+
+.topbar .global-month-navigator {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid #d8e2ef;
+  border-radius: 11px;
+  background: #f4f7fb;
+  box-shadow: none;
+}
+
+.topbar .global-month-arrow,
+.topbar .global-month-current {
+  min-height: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.topbar .global-month-arrow {
+  width: 32px;
+  flex: 0 0 32px;
+}
+
+.topbar .global-month-picker {
+  min-width: 150px;
+  min-height: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 4px rgba(15,38,78,0.08);
+}
+
+.topbar .global-month-picker > span {
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.topbar .global-month-current {
+  gap: 5px;
+  padding: 0 9px;
+  font-size: 10px;
+}
+
+@media (max-width: 900px) {
+
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .topbar-context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+}
+
+@media (max-width: 720px) {
+
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .topbar-context {
+    width: 100%;
+  }
+
+  .topbar .global-month-navigator {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .topbar .global-month-picker {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .topbar > small {
+    align-self: flex-end;
+  }
+
+}
+
+@media (max-width: 420px) {
+
+  .topbar .global-month-current span {
+    display: none;
+  }
+
+  .topbar .global-month-current {
+    width: 32px;
+    padding: 0;
+  }
+
+}
+
+
+/* =========================================================
+   DENTALTRACK SHARED CONFIRMATION DIALOG
+   ========================================================= */
+
+.app-confirm-backdrop {
+  position: fixed;
+  z-index: 9000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(7,20,43,0.67);
+  backdrop-filter: blur(6px);
+  animation:
+    app-confirm-backdrop-enter
+    160ms ease-out;
+}
+
+.app-confirm-dialog {
+  position: relative;
+  width: min(460px,100%);
+  padding: 28px;
+  border: 1px solid #dce4ef;
+  border-radius: 21px;
+  background: #ffffff;
+  box-shadow:
+    0 34px 100px rgba(4,15,35,0.38);
+  animation:
+    app-confirm-dialog-enter
+    180ms ease-out;
+}
+
+.app-confirm-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #dce4ef;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #6b788d;
+  cursor: pointer;
+}
+
+.app-confirm-close:hover {
+  background: #f6f8fb;
+}
+
+.app-confirm-icon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 18px;
+  place-items: center;
+  border-radius: 16px;
+}
+
+.app-confirm-dialog.is-primary
+  .app-confirm-icon {
+  background: #eaf2ff;
+  color: #2868ed;
+}
+
+.app-confirm-dialog.is-warning
+  .app-confirm-icon {
+  background: #fff5df;
+  color: #b96d08;
+}
+
+.app-confirm-dialog.is-danger
+  .app-confirm-icon {
+  background: #fff0f2;
+  color: #c3293b;
+}
+
+.app-confirm-copy {
+  padding-right: 18px;
+}
+
+.app-confirm-eyebrow {
+  color: #70809a;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-confirm-dialog h2 {
+  margin: 6px 0 9px;
+  color: #102043;
+  font-size: 23px;
+  line-height: 1.2;
+}
+
+.app-confirm-dialog p {
+  margin: 0;
+  color: #5d6c82;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.app-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.app-confirm-actions button {
+  min-height: 43px;
+  padding: 0 17px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+.app-confirm-cancel {
+  border: 1px solid #d5deea;
+  background: #ffffff;
+  color: #465973;
+}
+
+.app-confirm-cancel:hover {
+  background: #f6f8fb;
+}
+
+.app-confirm-submit {
+  border: 0;
+  color: #ffffff;
+  box-shadow:
+    0 10px 22px rgba(37,99,235,0.2);
+}
+
+.app-confirm-dialog.is-primary
+  .app-confirm-submit {
+  background: #2868ed;
+}
+
+.app-confirm-dialog.is-warning
+  .app-confirm-submit {
+  background: #c77a10;
+}
+
+.app-confirm-dialog.is-danger
+  .app-confirm-submit {
+  background: #c3293b;
+}
+
+.app-confirm-submit:focus-visible,
+.app-confirm-cancel:focus-visible,
+.app-confirm-close:focus-visible {
+  outline: 3px solid rgba(47,111,237,0.2);
+  outline-offset: 2px;
+}
+
+@keyframes app-confirm-backdrop-enter {
+
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+
+}
+
+@keyframes app-confirm-dialog-enter {
+
+  from {
+    opacity: 0;
+    transform:
+      translateY(10px)
+      scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+
+}
+
+@media (max-width: 640px) {
+
+  .app-confirm-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .app-confirm-dialog {
+    width: 100%;
+    padding: 26px 20px 21px;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .app-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .app-confirm-actions button {
+    width: 100%;
+  }
+
+}
+
+
+/* =========================================================
+   DENTALTRACK SHARED APPLICATION TOAST
+   ========================================================= */
+
+.app-toast {
+  position: fixed;
+  z-index: 10000;
+  right: 24px;
+  bottom: 24px;
+  display: grid;
+  width: min(430px,calc(100vw - 48px));
+  grid-template-columns:
+    auto minmax(0,1fr) auto;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px 16px;
+  border: 1px solid;
+  border-radius: 14px;
+  box-shadow:
+    0 22px 60px rgba(15,23,42,0.2);
+  animation:
+    app-toast-enter
+    180ms ease-out;
+}
+
+.app-toast.is-success {
+  border-color: #a8dfc2;
+  background: #f0fbf5;
+  color: #17653f;
+}
+
+.app-toast.is-error {
+  border-color: #f0b8c0;
+  background: #fff3f5;
+  color: #a52638;
+}
+
+.app-toast.is-info {
+  border-color: #b9d0f7;
+  background: #f1f6ff;
+  color: #285fbd;
+}
+
+.app-toast-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.app-toast.is-success
+  .app-toast-icon {
+  background: #d7f3e3;
+  color: #137346;
+}
+
+.app-toast.is-error
+  .app-toast-icon {
+  background: #ffe0e5;
+  color: #bd293d;
+}
+
+.app-toast.is-info
+  .app-toast-icon {
+  background: #dce9ff;
+  color: #2868d5;
+}
+
+.app-toast-copy {
+  min-width: 0;
+}
+
+.app-toast-copy strong {
+  display: block;
+  margin-bottom: 3px;
+  color: inherit;
+  font-size: 12px;
+}
+
+.app-toast-copy p {
+  margin: 0;
+  color: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.app-toast-close {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+  opacity: 0.65;
+}
+
+.app-toast-close:hover {
+  background: rgba(15,23,42,0.06);
+  opacity: 1;
+}
+
+.app-toast-close:focus-visible {
+  outline: 3px solid rgba(47,111,237,0.2);
+  outline-offset: 2px;
+}
+
+@keyframes app-toast-enter {
+
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+}
+
+@media (max-width: 640px) {
+
+  .app-toast {
+    right: 14px;
+    bottom: 14px;
+    width: calc(100vw - 28px);
+  }
+
+}
+
+
+/* =========================================================
+   DENTALTRACK PAYMENTS WORKSPACE TABS
+   ========================================================= */
+
+.payments-view-tabs {
+  display: grid;
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+  gap: 8px;
+  margin: 18px 0;
+  padding: 6px;
+  border: 1px solid #dce5f1;
+  border-radius: 15px;
+  background: #edf2f8;
+}
+
+.payments-view-tabs button {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: #68788f;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.payments-view-tabs button:hover {
+  background: rgba(255,255,255,0.58);
+  color: #285fc4;
+}
+
+.payments-view-tabs button:active {
+  transform: translateY(1px);
+}
+
+.payments-view-tabs button.is-active {
+  border-color: #d6e1f2;
+  background: #ffffff;
+  color: #245fc9;
+  box-shadow:
+    0 5px 15px rgba(28,55,101,0.1);
+}
+
+.payments-view-tabs button:focus-visible {
+  outline: 3px solid rgba(47,111,237,0.18);
+  outline-offset: 2px;
+}
+
+.payments-view-tabs button > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(47,111,237,0.09);
+  color: currentColor;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.payments-view-tabs button.is-active > span {
+  background: #eaf1ff;
+}
+
+.payments-view-tabs button > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.payments-view-tabs strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payments-view-tabs small {
+  overflow: hidden;
+  color: #8a97aa;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payment-work-section[hidden],
+.payment-global-section[hidden],
+.payments-history-card[hidden] {
+  display: none;
+}
+
+.payment-work-section,
+.payment-global-section,
+.payments-history-card {
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+
+  .payments-view-tabs {
+    grid-template-columns: 1fr;
+    margin: 14px 0;
+  }
+
+  .payments-view-tabs button {
+    min-height: 51px;
+  }
+
+}
+
+@media (max-width: 420px) {
+
+  .payments-view-tabs button {
+    padding: 7px 10px;
+  }
+
+  .payments-view-tabs button > span {
+    width: 31px;
+    height: 31px;
+    flex-basis: 31px;
+  }
+
+}
+
+
+/* =========================================================
+   DENTALTRACK UNIFIED DATA TABLES
+   ========================================================= */
+
+.doctors-tab-panel[hidden] {
+  display: none;
+}
+
+.doctors-tab-panel {
+  min-width: 0;
+}
+
+.doctors-table-scroll,
+.works-table-scroll,
+.payments-table-scroll,
+.simple-dashboard-table-scroll,
+.doctor-detail-table-scroll {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior-x: contain;
+  background: #ffffff;
+}
+
+.doctors-table-scroll,
+.payments-table-scroll,
+.simple-dashboard-table-scroll,
+.doctor-detail-table-scroll {
+  max-height: min(620px,calc(100vh - 260px));
+}
+
+.works-table-scroll {
+  max-height: min(680px,calc(100vh - 230px));
+}
+
+.doctors-table thead th,
+.works-table thead th,
+.payments-table thead th,
+.simple-dashboard-table thead th,
+.doctor-detail-table thead th {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  border-bottom: 1px solid #dfe6f0;
+  background: #f8fafd;
+  box-shadow:
+    0 1px 0 rgba(15,38,78,0.04);
+  white-space: nowrap;
+}
+
+.doctors-table tbody tr,
+.works-table tbody tr,
+.payments-table tbody tr,
+.simple-dashboard-table tbody tr,
+.doctor-detail-table tbody tr {
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.doctors-table tbody tr:nth-child(even),
+.works-table tbody tr:nth-child(even),
+.payments-table tbody tr:nth-child(even),
+.simple-dashboard-table tbody tr:nth-child(even),
+.doctor-detail-table tbody tr:nth-child(even) {
+  background: #fcfdff;
+}
+
+.doctors-table tbody tr:hover,
+.works-table tbody tr:hover,
+.payments-table tbody tr:hover,
+.simple-dashboard-table tbody tr:hover,
+.doctor-detail-table tbody tr:hover {
+  background: #f3f7ff;
+}
+
+.doctors-clickable-row:focus-visible,
+.payment-work-row:focus-visible,
+.simple-dashboard-clickable-row:focus-visible,
+.doctor-detail-table tbody tr:focus-visible {
+  position: relative;
+  z-index: 2;
+  outline: 3px solid rgba(47,111,237,0.2);
+  outline-offset: -3px;
+  background: #f1f6ff;
+}
+
+.doctors-table td,
+.works-table td,
+.payments-table td,
+.simple-dashboard-table td,
+.doctor-detail-table td {
+  line-height: 1.4;
+}
+
+.works-table th:nth-child(10),
+.works-table td:nth-child(10),
+.payment-work-table th:nth-child(5),
+.payment-work-table th:nth-child(6),
+.payment-work-table th:nth-child(7),
+.payment-work-table td:nth-child(5),
+.payment-work-table td:nth-child(6),
+.payment-work-table td:nth-child(7),
+.simple-dashboard-table th:nth-child(2),
+.simple-dashboard-table th:nth-child(3),
+.simple-dashboard-table th:nth-child(4),
+.simple-dashboard-table td:nth-child(2),
+.simple-dashboard-table td:nth-child(3),
+.simple-dashboard-table td:nth-child(4),
+.doctor-detail-table th:nth-child(7),
+.doctor-detail-table th:nth-child(8),
+.doctor-detail-table th:nth-child(9),
+.doctor-detail-table td:nth-child(7),
+.doctor-detail-table td:nth-child(8),
+.doctor-detail-table td:nth-child(9) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.doctors-table th:last-child,
+.doctors-table td:last-child {
+  text-align: right;
+}
+
+.doctors-row-actions,
+.works-actions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.doctors-table-scroll::-webkit-scrollbar,
+.works-table-scroll::-webkit-scrollbar,
+.payments-table-scroll::-webkit-scrollbar,
+.simple-dashboard-table-scroll::-webkit-scrollbar,
+.doctor-detail-table-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.doctors-table-scroll::-webkit-scrollbar-thumb,
+.works-table-scroll::-webkit-scrollbar-thumb,
+.payments-table-scroll::-webkit-scrollbar-thumb,
+.simple-dashboard-table-scroll::-webkit-scrollbar-thumb,
+.doctor-detail-table-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background:
+    rgba(105,124,155,0.42);
+  background-clip: padding-box;
+}
+
+.doctors-table-scroll::-webkit-scrollbar-track,
+.works-table-scroll::-webkit-scrollbar-track,
+.payments-table-scroll::-webkit-scrollbar-track,
+.simple-dashboard-table-scroll::-webkit-scrollbar-track,
+.doctor-detail-table-scroll::-webkit-scrollbar-track {
+  background: #f3f6fa;
+}
+
+@media (max-width: 720px) {
+
+  .doctors-table-scroll,
+  .works-table-scroll,
+  .payments-table-scroll,
+  .simple-dashboard-table-scroll,
+  .doctor-detail-table-scroll {
+    max-height: none;
+    border-radius: 11px;
+  }
+
+  .doctors-table th,
+  .works-table th,
+  .payments-table th,
+  .simple-dashboard-table th,
+  .doctor-detail-table th {
+    padding: 11px 12px;
+    font-size: 9px;
+  }
+
+  .doctors-table td,
+  .works-table td,
+  .payments-table td,
+  .simple-dashboard-table td,
+  .doctor-detail-table td {
+    padding: 12px;
+    font-size: 11px;
+  }
+
+}
+
+
+/* =========================================================
+   DENTALTRACK COMPACT DOCTOR DETAILS
+   ========================================================= */
+
+.doctor-detail-back {
+  margin-bottom: 12px;
+}
+
+.doctor-detail-header {
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: 16px;
+}
+
+.doctor-detail-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  font-size: 20px;
+}
+
+.doctor-detail-header h1 {
+  margin: 2px 0 3px;
+  font-size: 24px;
+}
+
+.doctor-detail-header-actions {
+  flex-wrap: wrap;
+}
+
+.doctor-detail-button {
+  min-height: 39px;
+  padding: 0 13px;
+  font-size: 11px;
+}
+
+.doctor-detail-kpis {
+  gap: 11px;
+  margin-top: 12px;
+}
+
+.doctor-detail-kpis article {
+  min-height: 86px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  box-shadow:
+    0 10px 30px rgba(24,48,91,0.05);
+}
+
+.doctor-detail-kpis span {
+  font-size: 10px;
+}
+
+.doctor-detail-kpis strong {
+  margin-top: 4px;
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+}
+
+.doctor-detail-kpis small {
+  margin-top: 2px;
+  font-size: 9px;
+}
+
+.doctor-detail-content {
+  grid-template-columns:
+    minmax(0,1fr)
+    minmax(250px,285px);
+  gap: 13px;
+  margin-top: 13px;
+}
+
+.doctor-detail-card {
+  padding: 18px;
+  border-radius: 16px;
+  box-shadow:
+    0 12px 35px rgba(24,48,91,0.055);
+}
+
+.doctor-detail-card-header h2 {
+  font-size: 17px;
+}
+
+.doctor-detail-card-header p {
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.doctor-detail-filters {
+  gap: 8px;
+  margin: 13px 0;
+}
+
+.doctor-detail-search {
+  min-height: 39px;
+}
+
+.doctor-detail-filters select {
+  min-height: 39px;
+}
+
+.doctor-detail-table {
+  min-width: 700px;
+}
+
+.doctor-detail-table th {
+  padding: 10px 12px;
+}
+
+.doctor-detail-table td {
+  padding: 11px 12px;
+}
+
+.doctor-detail-patient-cell {
+  display: flex;
+  min-width: 150px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doctor-detail-patient-cell strong {
+  color: #203451;
+  font-size: 12px;
+}
+
+.doctor-detail-patient-cell span {
+  color: #8996aa;
+  font-size: 9px;
+}
+
+.doctor-detail-patient-cell small {
+  width: max-content;
+  margin-top: 2px;
+  padding: 2px 6px;
+  border: 1px solid #f6d39a;
+  border-radius: 999px;
+  background: #fff7e8;
+  color: #ae6908;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.doctor-detail-table th:nth-child(3),
+.doctor-detail-table th:nth-child(4),
+.doctor-detail-table th:nth-child(5),
+.doctor-detail-table td:nth-child(3),
+.doctor-detail-table td:nth-child(4),
+.doctor-detail-table td:nth-child(5) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.doctor-detail-payments {
+  align-self: start;
+}
+
+.doctor-payment-list {
+  max-height: 460px;
+  margin-top: 11px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.doctor-payment-row {
+  gap: 9px;
+  padding: 10px 0;
+}
+
+.doctor-payment-row strong {
+  font-size: 13px;
+}
+
+.doctor-payment-row span,
+.doctor-payment-row time {
+  font-size: 9px;
+}
+
+.doctor-payment-row span {
+  display: block;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-work-drawer {
+  width: min(500px,100%);
+}
+
+.doctor-work-drawer > header {
+  padding: 18px 20px;
+}
+
+.doctor-work-drawer-body {
+  padding: 18px 20px;
+}
+
+.doctor-work-summary-grid {
+  gap: 8px;
+}
+
+.doctor-work-summary-grid > div {
+  padding: 10px 11px;
+}
+
+.doctor-work-finance {
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.doctor-work-finance > div {
+  padding: 10px 11px;
+}
+
+.doctor-work-teeth {
+  margin-top: 12px;
+  padding: 13px;
+}
+
+@media (max-width: 1100px) {
+
+  .doctor-detail-content {
+    grid-template-columns: 1fr;
+  }
+
+  .doctor-detail-payments {
+    width: 100%;
+  }
+
+  .doctor-payment-list {
+    max-height: 300px;
+  }
+
+}
+
+@media (max-width: 720px) {
+
+  .doctor-detail-header {
+    padding: 15px;
+  }
+
+  .doctor-detail-identity {
+    gap: 12px;
+  }
+
+  .doctor-detail-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    font-size: 18px;
+  }
+
+  .doctor-detail-header h1 {
+    font-size: 21px;
+  }
+
+  .doctor-detail-kpis {
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+
+  .doctor-detail-kpis article {
+    min-height: 82px;
+    padding: 12px;
+  }
+
+  .doctor-detail-kpis strong {
+    font-size: 18px;
+  }
+
+  .doctor-detail-card {
+    padding: 14px;
+  }
+
+  .doctor-detail-table {
+    min-width: 650px;
+  }
+
+  .doctor-payment-list {
+    max-height: none;
+  }
+
+}
+
+@media (max-width: 430px) {
+
+  .doctor-detail-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .doctor-detail-header-actions {
+    flex-direction: column;
+  }
+
+  .doctor-detail-button {
+    width: 100%;
+  }
+
+}
+
+
+/* =========================================================
+   DENTALTRACK FINAL MOBILE LAYOUT
+   ========================================================= */
+
+@media (max-width: 720px) {
+
+  .app-layout {
+    display: block;
+    min-width: 0;
+  }
+
+  .sidebar {
+    position: sticky;
+    z-index: 1100;
+    top: 0;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    flex: none;
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom:
+      1px solid rgba(255,255,255,0.1);
+  }
+
+  .sidebar .brand {
+    display: none;
+  }
+
+  .sidebar nav {
+    display: grid;
+    min-width: 0;
+    grid-template-columns:
+      repeat(5,minmax(0,1fr));
+    gap: 5px;
+  }
+
+  .sidebar a,
+  .sidebar .logout {
+    min-width: 0;
+    min-height: 50px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 6px 3px;
+    border-radius: 8px;
+    font-size: 9px;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .sidebar a svg,
+  .sidebar .logout svg {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 auto;
+  }
+
+  .sidebar .logout > span {
+    flex: none;
+  }
+
+  .sidebar .logout kbd {
+    display: none;
+  }
+
+  .content {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .topbar {
+    min-height: 58px;
+    height: auto;
+    padding: 9px 14px;
+  }
+
+  .topbar-context {
+    min-width: 0;
+  }
+
+  .topbar-context > span {
+    font-size: 11px;
+  }
+
+  .topbar > small {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .simple-dashboard,
+  .doctors-page,
+  .works-page,
+  .payments-page,
+  .doctor-detail-page {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .app-confirm-dialog,
+  .session-warning-modal,
+  .payment-work-modal,
+  .works-modal,
+  .doctor-work-drawer {
+    max-width: 100vw;
+  }
+
+  .app-toast {
+    bottom:
+      max(
+        14px,
+        env(safe-area-inset-bottom)
+      );
+  }
+
+}
+
+@media (max-width: 430px) {
+
+  .sidebar {
+    padding-inline: 6px;
+  }
+
+  .sidebar nav {
+    gap: 3px;
+  }
+
+  .sidebar a,
+  .sidebar .logout {
+    min-height: 47px;
+    font-size: 8px;
+  }
+
+  .topbar {
+    padding-inline: 10px;
   }
 
 }

@@ -21,6 +21,12 @@ import {
   useUnsavedChanges,
 } from "@/lib/useUnsavedChanges";
 
+import {
+  useConfirm,
+} from "@/context/ConfirmContext";
+
+import AppToast from "@/components/AppToast";
+
 
 type Color = {
   id:number;
@@ -38,6 +44,10 @@ type MessageType =
 
 
 export default function ColorsManager() {
+
+  const {
+    confirmAction,
+  } = useConfirm();
 
   const [
     colors,
@@ -410,11 +420,27 @@ export default function ColorsManager() {
 
 
     const confirmed =
-      window.confirm(
-        nextStatus
-          ? `A dëshironi ta aktivizoni colorin ${color.name}?`
-          : `A dëshironi ta çaktivizoni colorin ${color.name}?`,
-      );
+      await confirmAction({
+        title:
+          nextStatus
+            ? "Aktivizo ngjyrën"
+            : "Çaktivizo ngjyrën",
+
+        message:
+          nextStatus
+            ? `A dëshironi ta aktivizoni ngjyrën ${color.name}?`
+            : `A dëshironi ta çaktivizoni ngjyrën ${color.name}?`,
+
+        confirmLabel:
+          nextStatus
+            ? "Aktivizo"
+            : "Çaktivizo",
+
+        tone:
+          nextStatus
+            ? "primary"
+            : "warning",
+      });
 
 
     if(!confirmed) {
@@ -516,9 +542,15 @@ export default function ColorsManager() {
 
 
     const confirmed =
-      window.confirm(
-        `A dëshironi ta fshini përfundimisht colorin ${color.name}?`,
-      );
+      await confirmAction({
+        title:"Fshi ngjyrën",
+
+        message:
+          `A dëshironi ta fshini përfundimisht ngjyrën ${color.name}? Ky veprim nuk mund të zhbëhet.`,
+
+        confirmLabel:"Fshi",
+        tone:"danger",
+      });
 
 
     if(!confirmed) {
@@ -730,16 +762,20 @@ export default function ColorsManager() {
 
             {message && (
 
-              <div
-                className={
+              <AppToast
+                message={message}
+                type={
                   messageType === "success"
-                    ? "doctors-message is-success"
-                    : "doctors-message is-error"
+                    ? "success"
+                    : "error"
                 }
-                role="alert"
-              >
-                {message}
-              </div>
+                onClose={()=>{
+
+                  setMessage("");
+                  setMessageType("");
+
+                }}
+              />
 
             )}
 

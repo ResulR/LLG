@@ -5,9 +5,12 @@ import {
 } from "react";
 
 import Layout from "@/components/Layout";
+import AppToast from "@/components/AppToast";
 import { useMonth } from "@/context/MonthContext";
 import { api } from "@/lib/api";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+
+import { useConfirm } from "@/context/ConfirmContext";
 
 
 type Doctor = {
@@ -163,6 +166,10 @@ function serializeTeeth(
 
 
 export default function Works(){
+
+  const {
+    confirmAction,
+  } = useConfirm();
 
   const {
     selectedMonth,
@@ -885,7 +892,28 @@ export default function Works(){
         : `A dëshironi ta riaktivizoni punën ${getWorkNumber(work)}?`;
 
 
-    if(!window.confirm(confirmationMessage)){
+    const confirmed =
+      await confirmAction({
+        title:
+          nextStatus === "cancelled"
+            ? "Anulo punën"
+            : "Riaktivizo punën",
+
+        message:confirmationMessage,
+
+        confirmLabel:
+          nextStatus === "cancelled"
+            ? "Anulo punën"
+            : "Riaktivizo",
+
+        tone:
+          nextStatus === "cancelled"
+            ? "danger"
+            : "primary",
+      });
+
+
+    if(!confirmed){
       return;
     }
 
@@ -1094,11 +1122,19 @@ export default function Works(){
     }
 
 
-    if(
-      !window.confirm(
-        `A dëshironi t'i ruani ndryshimet për punën ${getWorkNumber(editingWork)}?`
-      )
-    ){
+    const confirmed =
+      await confirmAction({
+        title:"Ruaj ndryshimet",
+
+        message:
+          `A dëshironi t'i ruani ndryshimet për punën ${getWorkNumber(editingWork)}?`,
+
+        confirmLabel:"Ruaj",
+        tone:"primary",
+      });
+
+
+    if(!confirmed){
       return;
     }
 
@@ -1627,18 +1663,38 @@ export default function Works(){
               </div>
 
 
-              {formMessage && (
-                <div
-                  className={
-                    formMessageType === "success"
-                      ? "works-message is-success"
-                      : "works-message is-error"
-                  }
-                  role="alert"
-                >
-                  {formMessage}
-                </div>
-              )}
+              {
+                formMessage &&
+                formMessageType === "success" && (
+
+                  <AppToast
+                    message={formMessage}
+                    type="success"
+                    onClose={()=>{
+
+                      setFormMessage("");
+                      setFormMessageType("");
+
+                    }}
+                  />
+
+                )
+              }
+
+
+              {
+                formMessage &&
+                formMessageType === "error" && (
+
+                  <div
+                    className="works-message is-error"
+                    role="alert"
+                  >
+                    {formMessage}
+                  </div>
+
+                )
+              }
 
 
               <button
@@ -1696,16 +1752,22 @@ export default function Works(){
 
 
           {historyMessage && (
-            <div
-              className={
+
+            <AppToast
+              message={historyMessage}
+              type={
                 historyMessageType === "success"
-                  ? "works-message is-success"
-                  : "works-message is-error"
+                  ? "success"
+                  : "error"
               }
-              role="alert"
-            >
-              {historyMessage}
-            </div>
+              onClose={()=>{
+
+                setHistoryMessage("");
+                setHistoryMessageType("");
+
+              }}
+            />
+
           )}
 
 
@@ -1944,7 +2006,7 @@ export default function Works(){
                   filteredWorks.length === 0 && (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={11}
                         className="works-empty"
                       >
                         Nuk u gjet asnjë punë.
@@ -1956,7 +2018,7 @@ export default function Works(){
                 {isLoading && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={11}
                       className="works-empty"
                     >
                       Duke ngarkuar...
