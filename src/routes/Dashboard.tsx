@@ -5,7 +5,14 @@ import {
 } from "react";
 
 import {
-  Link,
+  ArrowRight,
+  Banknote,
+  BriefcaseBusiness,
+  CircleDollarSign,
+  RefreshCw,
+} from "lucide-react";
+
+import {
   useNavigate,
 } from "react-router-dom";
 
@@ -70,7 +77,18 @@ type DashboardData = {
 };
 
 
-function formatMoney(value:string|number) {
+type ActivityItem = {
+  id:string;
+  type:"payment"|"work";
+  title:string;
+  subtitle:string;
+  date:string;
+};
+
+
+function formatMoney(
+  value:string|number,
+) {
 
   return new Intl.NumberFormat(
     "de-DE",
@@ -78,14 +96,48 @@ function formatMoney(value:string|number) {
       minimumFractionDigits:2,
       maximumFractionDigits:2,
     },
-  ).format(Number(value || 0));
+  ).format(
+    Number(value || 0),
+  );
+
+}
+
+
+function formatCompactMoney(
+  value:string|number,
+) {
+
+  return new Intl.NumberFormat(
+    "de-DE",
+    {
+      minimumFractionDigits:0,
+      maximumFractionDigits:2,
+    },
+  ).format(
+    Number(value || 0),
+  );
 
 }
 
 
 function formatDate(value:string) {
 
-  return new Date(value).toLocaleDateString(
+  const normalizedValue =
+    /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T12:00:00`
+      : value;
+
+
+  const date =
+    new Date(normalizedValue);
+
+
+  if(Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+
+  return date.toLocaleDateString(
     "sq-AL",
     {
       day:"2-digit",
@@ -97,24 +149,57 @@ function formatDate(value:string) {
 }
 
 
-function getWorkNumber(work:RecentWork) {
+function getWorkNumber(
+  work:RecentWork,
+) {
 
   return [
     work.year,
     String(work.month).padStart(2,"0"),
-    String(work.monthly_number).padStart(3,"0"),
+    String(work.monthly_number)
+      .padStart(3,"0"),
   ].join("-");
 
 }
 
 
-function getDebtStatus(days:number) {
+function getDoctorInitials(
+  name:string,
+) {
+
+  const parts =
+    name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+  if(parts.length === 0) {
+    return "DT";
+  }
+
+  if(parts.length === 1) {
+    return parts[0]
+      .slice(0,2)
+      .toUpperCase();
+  }
+
+  return (
+    parts[0][0] +
+    parts[parts.length - 1][0]
+  ).toUpperCase();
+
+}
+
+
+function getDebtStatus(
+  days:number,
+) {
 
   if(days > 30) {
 
     return {
-      label:"Me vonesë",
-      className:"is-overdue",
+      label:"Urgjente",
+      className:"is-urgent",
     };
 
   }
@@ -123,8 +208,8 @@ function getDebtStatus(days:number) {
   if(days > 14) {
 
     return {
-      label:"Për t'u ndjekur",
-      className:"is-watch",
+      label:"Për ndjekje",
+      className:"is-follow-up",
     };
 
   }
@@ -140,26 +225,33 @@ function getDebtStatus(days:number) {
 
 export default function Dashboard() {
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     selectedMonth,
-  } = useMonth();
+  } =
+    useMonth();
 
-  const [data,setData] =
-    useState<DashboardData|null>(null);
+  const [
+    data,
+    setData,
+  ] =
+    useState<DashboardData|null>(
+      null,
+    );
 
-  const [isLoading,setIsLoading] =
+  const [
+    isLoading,
+    setIsLoading,
+  ] =
     useState(true);
 
-  const [error,setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState("");
-
-  const [search,setSearch] =
-    useState("");
-
-  const [ageFilter,setAgeFilter] =
-    useState("all");
 
 
   async function loadDashboard() {
@@ -187,7 +279,9 @@ export default function Dashboard() {
       }
 
 
-      setData(await response.json());
+      setData(
+        await response.json(),
+      );
 
 
     } catch(error) {
@@ -208,122 +302,269 @@ export default function Dashboard() {
   }
 
 
-  useEffect(()=>{
+  useEffect(
+    ()=>{
 
-    loadDashboard();
+      void loadDashboard();
 
-  },[
-    selectedMonth,
-  ]);
-
-
-  const filteredReceivables = useMemo(()=>{
-
-    if(!data) {
-      return [];
-    }
+    },
+    [
+      selectedMonth,
+    ],
+  );
 
 
-    const normalizedSearch =
-      search.trim().toLowerCase();
+  const priorityReceivables =
+    useMemo(
+      ()=>{
 
-
-    return data.receivables.filter(
-      (receivable)=>{
-
-        const matchesSearch =
-          receivable.doctor_name
-            .toLowerCase()
-            .includes(normalizedSearch);
-
-
-        let matchesAge = true;
-
-
-        if(ageFilter === "new") {
-
-          matchesAge =
-            receivable.days_outstanding <= 14;
-
+        if(!data) {
+          return [];
         }
 
 
-        if(ageFilter === "watch") {
+        return [...data.receivables]
+          .filter(
+            (receivable)=>
+              Number(
+                receivable
+                  .outstanding_balance,
+              ) > 0,
+          )
+          .sort(
+            (first,second)=>{
 
-          matchesAge =
-            receivable.days_outstanding > 14 &&
-            receivable.days_outstanding <= 30;
+              const firstScore =
+                Number(
+                  first.outstanding_balance,
+                ) *
+                Math.max(
+                  first.days_outstanding,
+                  1,
+                );
 
-        }
+              const secondScore =
+                Number(
+                  second.outstanding_balance,
+                ) *
+                Math.max(
+                  second.days_outstanding,
+                  1,
+                );
 
 
-        if(ageFilter === "overdue") {
+              return secondScore - firstScore;
 
-          matchesAge =
-            receivable.days_outstanding > 30;
-
-        }
-
-
-        return matchesSearch && matchesAge;
+            },
+          )
+          .slice(0,4);
 
       },
+      [
+        data,
+      ],
     );
 
-  },[
-    data,
-    search,
-    ageFilter,
-  ]);
+
+  const maximumPriorityScore =
+    useMemo(
+      ()=>{
+
+        return Math.max(
+          ...priorityReceivables.map(
+            (receivable)=>
+              Number(
+                receivable
+                  .outstanding_balance,
+              ) *
+              Math.max(
+                receivable.days_outstanding,
+                1,
+              ),
+          ),
+          1,
+        );
+
+      },
+      [
+        priorityReceivables,
+      ],
+    );
+
+
+  const recentActivity =
+    useMemo<ActivityItem[]>(
+      ()=>{
+
+        if(!data) {
+          return [];
+        }
+
+
+        const workItems =
+          data.recent_works.map(
+            (work)=>({
+              id:`work-${work.id}`,
+              type:"work" as const,
+              title:
+                `Punë e re ${getWorkNumber(
+                  work,
+                )}`,
+              subtitle:
+                `${work.first_name} ${work.last_name}`,
+              date:work.work_date,
+            }),
+          );
+
+
+        const paymentItems =
+          data.recent_payments.map(
+            (payment)=>({
+              id:`payment-${payment.id}`,
+              type:"payment" as const,
+              title:
+                `Pagesë ${formatCompactMoney(
+                  payment.amount,
+                )} €`,
+              subtitle:
+                payment.doctor_name,
+              date:payment.payment_date,
+            }),
+          );
+
+
+        return [
+          ...workItems,
+          ...paymentItems,
+        ]
+          .sort(
+            (first,second)=>
+              second.date.localeCompare(
+                first.date,
+              ),
+          )
+          .slice(0,3);
+
+      },
+      [
+        data,
+      ],
+    );
+
+
+  const financialDistribution =
+    useMemo(
+      ()=>{
+
+        if(!data) {
+
+          return {
+            paid:0,
+            debt:0,
+          };
+
+        }
+
+
+        const paid =
+          Math.max(
+            Number(
+              data.overview.total_paid,
+            ),
+            0,
+          );
+
+        const debt =
+          Math.max(
+            Number(
+              data.overview
+                .outstanding_balance,
+            ),
+            0,
+          );
+
+        const total =
+          paid + debt;
+
+
+        if(total <= 0) {
+
+          return {
+            paid:0,
+            debt:0,
+          };
+
+        }
+
+
+        return {
+          paid:
+            (
+              paid /
+              total
+            ) * 100,
+
+          debt:
+            (
+              debt /
+              total
+            ) * 100,
+        };
+
+      },
+      [
+        data,
+      ],
+    );
 
 
   return (
 
     <Layout>
 
-      <main className="simple-dashboard">
-
-        <header className="simple-dashboard-header">
-
-          <div>
-
-            <span className="simple-dashboard-eyebrow">
-              Pamje e përgjithshme
-            </span>
-
-            <h1>Dashboard</h1>
-
-            <p>
-              Informacioni kryesor i laboratorit
-              në një vend.
-            </p>
-
-          </div>
-
-
-          <button
-            type="button"
-            className="simple-dashboard-refresh"
-            onClick={loadDashboard}
-            disabled={isLoading}
-          >
-            ↻ Rifresko
-          </button>
-
-        </header>
-
+      <main className="finance-dashboard">
 
         {error && (
-          <div className="simple-dashboard-message">
-            {error}
-          </div>
+
+          <section
+            className="finance-dashboard-error"
+            role="alert"
+          >
+            <div>
+              <strong>
+                Të dhënat nuk u ngarkuan
+              </strong>
+
+              <span>{error}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={()=>
+                void loadDashboard()
+              }
+            >
+              <RefreshCw
+                size={15}
+                aria-hidden="true"
+              />
+
+              Provo përsëri
+            </button>
+          </section>
+
         )}
 
 
         {isLoading && !data && (
-          <div className="simple-dashboard-loading">
-            Duke ngarkuar...
-          </div>
+
+          <section
+            className="finance-dashboard-loading"
+            aria-live="polite"
+          >
+            Duke ngarkuar të dhënat...
+          </section>
+
         )}
 
 
@@ -331,619 +572,427 @@ export default function Dashboard() {
 
           <>
 
-            <section className="simple-dashboard-kpis">
+            <section className="finance-band">
 
-              <article className="simple-dashboard-kpi is-billed">
+              <div className="finance-band-primary">
 
-                <span className="simple-dashboard-kpi-icon">
-                  €
-                </span>
+                <span>Faturuar këtë muaj</span>
 
-                <div>
-                  <span>Totali i faturuar</span>
+                <strong>
+                  {
+                    formatMoney(
+                      data.overview.total_billed,
+                    )
+                  } €
+                </strong>
 
-                  <strong>
-                    {
-                      formatMoney(
-                        data.overview.total_billed,
-                      )
-                    } €
-                  </strong>
-
-                  <small>Punët aktive</small>
-                </div>
-
-              </article>
+              </div>
 
 
-              <article className="simple-dashboard-kpi is-paid">
+              <div
+                className="finance-band-progress"
+                aria-label={
+                  `Krahasim vizual: ${formatCompactMoney(
+                    data.overview.total_paid,
+                  )} euro të paguara këtë muaj dhe ${formatCompactMoney(
+                    data.overview.outstanding_balance,
+                  )} euro borxh aktual`
+                }
+              >
 
-                <span className="simple-dashboard-kpi-icon">
-                  ✓
-                </span>
+                <span
+                  className="is-paid"
+                  style={{
+                    width:
+                      `${financialDistribution.paid}%`,
+                  }}
+                />
 
-                <div>
-                  <span>Totali i paguar</span>
+                <span
+                  className="is-debt"
+                  style={{
+                    width:
+                      `${financialDistribution.debt}%`,
+                  }}
+                />
 
-                  <strong>
-                    {
-                      formatMoney(
-                        data.overview.total_paid,
-                      )
-                    } €
-                  </strong>
-
-                  <small>
-                    Pagesat e regjistruara
-                  </small>
-                </div>
-
-              </article>
-
-
-              <article className="simple-dashboard-kpi is-balance">
-
-                <span className="simple-dashboard-kpi-icon">
-                  !
-                </span>
-
-                <div>
-                  <span>Për t'u paguar</span>
-
-                  <strong>
-                    {
-                      formatMoney(
-                        data.overview
-                          .outstanding_balance,
-                      )
-                    } €
-                  </strong>
-
-                  <small>
-                    {
-                      data.receivables.length
-                    } mjekë me detyrim
-                  </small>
-                </div>
-
-              </article>
+              </div>
 
 
-              <article className="simple-dashboard-kpi is-works">
+              <div className="finance-band-stat is-paid">
 
-                <span className="simple-dashboard-kpi-icon">
-                  #
-                </span>
+                <span>Paguar</span>
 
-                <div>
-                  <span>Punë aktive</span>
+                <strong>
+                  {
+                    formatMoney(
+                      data.overview.total_paid,
+                    )
+                  } €
+                </strong>
 
-                  <strong>
-                    {data.overview.active_works}
-                  </strong>
+              </div>
 
-                  <small>
-                    {
-                      data.overview.active_doctors
-                    } mjekë aktivë
-                  </small>
-                </div>
 
-              </article>
+              <div className="finance-band-stat is-debt">
+
+                <span>Borxh gjithsej</span>
+
+                <strong>
+                  {
+                    formatMoney(
+                      data.overview
+                        .outstanding_balance,
+                    )
+                  } €
+                </strong>
+
+              </div>
+
+
+              <div className="finance-band-stat is-works">
+
+                <span>Punë aktive</span>
+
+                <strong>
+                  {data.overview.active_works}
+                </strong>
+
+                <small>
+                  / {data.overview.active_doctors} mjekë
+                </small>
+
+              </div>
 
             </section>
 
 
-            <section className="simple-dashboard-main">
+            <section className="finance-dashboard-grid">
 
-              <article className="simple-dashboard-card simple-dashboard-debts">
+              <article className="priority-debts-card">
 
-                <div className="simple-dashboard-card-header">
+                <header className="finance-card-header">
 
                   <div>
-
-                    <h2>Detyrimet e hapura</h2>
+                    <h1>Borxhi me përparësi</h1>
 
                     <p>
-                      Klikoni mbi mjekun për
-                      të parë detajet.
+                      Renditur sipas shumës dhe
+                      moshës së borxhit.
                     </p>
-
                   </div>
 
 
-                  <Link
-                    to="/payments"
-                    className="simple-dashboard-link"
-                  >
-                    Shiko pagesat
-                  </Link>
-
-                </div>
-
-
-                <div className="simple-dashboard-debt-filters">
-
-                  <div className="simple-dashboard-debt-search">
-
-                    <span>⌕</span>
-
-                    <input
-                      type="search"
-                      value={search}
-                      onChange={(event)=>
-                        setSearch(
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Kërko mjekun..."
-                    />
-
-                  </div>
-
-
-                  <select
-                    value={ageFilter}
-                    onChange={(event)=>
-                      setAgeFilter(
-                        event.target.value,
+                  <button
+                    type="button"
+                    onClick={()=>
+                      navigate(
+                        "/payments",
                       )
                     }
                   >
-                    <option value="all">
-                      Të gjitha
-                    </option>
-
-                    <option value="new">
-                      0–14 ditë
-                    </option>
-
-                    <option value="watch">
-                      15–30 ditë
-                    </option>
-
-                    <option value="overdue">
-                      Mbi 30 ditë
-                    </option>
-                  </select>
-
-                </div>
-
-
-                <div className="simple-dashboard-table-scroll">
-
-                  <table className="simple-dashboard-table">
-
-                    <thead>
-
-                      <tr>
-                        <th>Mjeku</th>
-                        <th>Faturuar</th>
-                        <th>Paguar</th>
-                        <th>Mbetja</th>
-                        <th>Puna më e vjetër</th>
-                        <th>Ditë</th>
-                        <th>Statusi</th>
-                      </tr>
-
-                    </thead>
-
-
-                    <tbody>
-
-                      {filteredReceivables.map(
-                        (receivable)=>{
-
-                          const status =
-                            getDebtStatus(
-                              receivable
-                                .days_outstanding,
-                            );
-
-
-                          return (
-
-                            <tr
-                              key={receivable.doctor_id}
-                              className="simple-dashboard-clickable-row"
-                              tabIndex={0}
-                              onClick={()=>
-                                navigate(
-                                  `/doctors/${receivable.doctor_id}`,
-                                )
-                              }
-                              onKeyDown={(event)=>{
-
-                                if(
-                                  event.key === "Enter" ||
-                                  event.key === " "
-                                ) {
-
-                                  navigate(
-                                    `/doctors/${receivable.doctor_id}`,
-                                  );
-
-                                }
-
-                              }}
-                            >
-
-                              <td>
-
-                                <div className="simple-dashboard-doctor">
-
-                                  <span>
-                                    {
-                                      receivable
-                                        .doctor_name
-                                        .charAt(0)
-                                        .toUpperCase()
-                                    }
-                                  </span>
-
-                                  <div>
-
-                                    <strong>
-                                      {
-                                        receivable
-                                          .doctor_name
-                                      }
-                                    </strong>
-
-                                    <small>
-                                      {
-                                        receivable
-                                          .unpaid_work_count
-                                      } punë të hapura
-                                    </small>
-
-                                  </div>
-
-                                </div>
-
-                              </td>
-
-
-                              <td>
-                                {
-                                  formatMoney(
-                                    receivable
-                                      .total_billed,
-                                  )
-                                } €
-                              </td>
-
-
-                              <td className="is-paid">
-                                {
-                                  formatMoney(
-                                    receivable
-                                      .total_paid,
-                                  )
-                                } €
-                              </td>
-
-
-                              <td className="is-balance">
-                                <strong>
-                                  {
-                                    formatMoney(
-                                      receivable
-                                        .outstanding_balance,
-                                    )
-                                  } €
-                                </strong>
-                              </td>
-
-
-                              <td>
-                                {
-                                  receivable
-                                    .oldest_unpaid_date
-                                    ? formatDate(
-                                        receivable
-                                          .oldest_unpaid_date,
-                                      )
-                                    : "-"
-                                }
-                              </td>
-
-
-                              <td>
-                                <strong>
-                                  {
-                                    receivable
-                                      .days_outstanding
-                                  }
-                                </strong>
-                              </td>
-
-
-                              <td>
-
-                                <span
-                                  className={
-                                    `simple-dashboard-debt-status ${status.className}`
-                                  }
-                                >
-                                  {status.label}
-                                </span>
-
-                              </td>
-
-                            </tr>
-
-                          );
-
-                        },
-                      )}
-
-
-                      {filteredReceivables.length === 0 && (
-
-                        <tr>
-
-                          <td
-                            colSpan={7}
-                            className="simple-dashboard-empty"
-                          >
-                            Nuk u gjet asnjë detyrim.
-                          </td>
-
-                        </tr>
-
-                      )}
-
-                    </tbody>
-
-                  </table>
-
-                </div>
-
-              </article>
-
-
-              <aside className="simple-dashboard-actions">
-
-                <h2>Veprime të shpejta</h2>
-
-                <p>
-                  Shkoni direkt te veprimi që
-                  ju nevojitet.
-                </p>
-
-
-                <Link
-                  to="/works"
-                  className="simple-dashboard-action is-work"
-                >
-                  <span>＋</span>
-
-                  <div>
-                    <strong>Krijo punë</strong>
-                    <small>Shto një punë të re</small>
-                  </div>
-
-                  <b>→</b>
-                </Link>
-
-
-                <Link
-                  to="/payments"
-                  className="simple-dashboard-action is-payment"
-                >
-                  <span>€</span>
-
-                  <div>
-                    <strong>Regjistro pagesë</strong>
-                    <small>Shto pagesën e një mjeku</small>
-                  </div>
-
-                  <b>→</b>
-                </Link>
-
-
-                <Link
-                  to="/doctors"
-                  className="simple-dashboard-action is-doctor"
-                >
-                  <span>+</span>
-
-                  <div>
-                    <strong>Menaxho mjekët</strong>
-                    <small>Shiko ose ndrysho mjekët</small>
-                  </div>
-
-                  <b>→</b>
-                </Link>
-
-              </aside>
-
-            </section>
-
-
-            <section className="simple-dashboard-bottom">
-
-              <article className="simple-dashboard-card">
-
-                <div className="simple-dashboard-card-header">
-
-                  <div>
-                    <h2>Punët e fundit</h2>
-                    <p>Pesë punët më të fundit.</p>
-                  </div>
-
-                  <Link
-                    to="/works"
-                    className="simple-dashboard-link"
-                  >
                     Shiko të gjitha
-                  </Link>
+                    <ArrowRight
+                      size={14}
+                      aria-hidden="true"
+                    />
+                  </button>
 
-                </div>
+                </header>
 
 
-                <div className="simple-dashboard-list">
+                <div className="priority-debts-list">
 
-                  {data.recent_works.map((work)=>(
+                  {priorityReceivables.map(
+                    (receivable)=>{
 
-                    <div
-                      key={work.id}
-                      className="simple-dashboard-list-row"
-                    >
+                      const status =
+                        getDebtStatus(
+                          receivable
+                            .days_outstanding,
+                        );
 
-                      <div>
-                        <div className="simple-dashboard-work-title">
+                      const score =
+                        Number(
+                          receivable
+                            .outstanding_balance,
+                        ) *
+                        Math.max(
+                          receivable
+                            .days_outstanding,
+                          1,
+                        );
 
-                          <strong>{getWorkNumber(work)}</strong>
+                      const priorityWidth =
+                        Math.max(
+                          (
+                            score /
+                            maximumPriorityScore
+                          ) * 100,
+                          12,
+                        );
 
-                          {work.is_repeat && (
-                            <span className="works-repeat-badge">
-                              Përsëritje
-                            </span>
-                          )}
 
-                        </div>
+                      return (
 
-                        <span>
-                          {work.first_name}{" "}
-                          {work.last_name}
-                        </span>
-
-                        <small
-                          className="simple-dashboard-work-description"
-                          title={
-                            work.description ??
-                            "Pa përshkrim"
+                        <button
+                          key={
+                            receivable.doctor_id
                           }
-                        >
-                          {
-                            work.description ??
-                            "Pa përshkrim"
-                          }
-                        </small>
-                      </div>
-
-
-                      <div>
-                        <strong>{work.doctor_name}</strong>
-
-                        <span>
-                          {formatDate(work.work_date)}
-                        </span>
-                      </div>
-
-
-                      <div className="simple-dashboard-row-end">
-
-                        <strong>
-                          {
-                            formatMoney(
-                              work.total_amount,
-                            )
-                          } €
-                        </strong>
-
-                        <span
+                          type="button"
                           className={
-                            work.status === "cancelled"
-                              ? "is-cancelled"
-                              : "is-active"
+                            `priority-debt-row ${status.className}`
+                          }
+                          onClick={()=>
+                            navigate(
+                              `/doctors/${receivable.doctor_id}`,
+                            )
                           }
                         >
-                          {
-                            work.status === "cancelled"
-                              ? "Anuluar"
-                              : "Aktive"
-                          }
-                        </span>
 
-                      </div>
-
-                    </div>
-
-                  ))}
-
-                </div>
-
-              </article>
-
-
-              <article className="simple-dashboard-card">
-
-                <div className="simple-dashboard-card-header">
-
-                  <div>
-                    <h2>Pagesat e fundit</h2>
-                    <p>Pesë pagesat më të fundit.</p>
-                  </div>
-
-                  <Link
-                    to="/payments"
-                    className="simple-dashboard-link"
-                  >
-                    Shiko të gjitha
-                  </Link>
-
-                </div>
-
-
-                <div className="simple-dashboard-list">
-
-                  {data.recent_payments.map(
-                    (payment)=>(
-
-                      <div
-                        key={payment.id}
-                        className="simple-dashboard-list-row"
-                      >
-
-                        <div>
-
-                          <strong>
-                            {payment.doctor_name}
-                          </strong>
-
-                          <span>
+                          <span className="priority-debt-avatar">
                             {
-                              payment.note ??
-                              "Pa shënim"
+                              getDoctorInitials(
+                                receivable
+                                  .doctor_name,
+                              )
                             }
                           </span>
 
-                        </div>
+
+                          <span className="priority-debt-identity">
+
+                            <strong>
+                              {
+                                receivable
+                                  .doctor_name
+                              }
+                            </strong>
+
+                            <small>
+                              {
+                                receivable
+                                  .unpaid_work_count
+                              } punë të hapura
+                              {" · "}
+                              {
+                                receivable
+                                  .days_outstanding
+                              } ditë pa pagesë
+                            </small>
+
+                          </span>
 
 
-                        <div className="simple-dashboard-row-end">
+                          <span className="priority-debt-meter">
 
-                          <strong className="is-paid">
+                            <i
+                              style={{
+                                width:
+                                  `${priorityWidth}%`,
+                              }}
+                            />
+
+                          </span>
+
+
+                          <strong className="priority-debt-amount">
                             {
-                              formatMoney(
-                                payment.amount,
+                              formatCompactMoney(
+                                receivable
+                                  .outstanding_balance,
                               )
                             } €
                           </strong>
 
-                          <span>
-                            {
-                              formatDate(
-                                payment.payment_date,
-                              )
-                            }
+
+                          <span className="priority-debt-status">
+                            {status.label}
                           </span>
 
-                        </div>
+                        </button>
 
-                      </div>
+                      );
 
-                    ),
+                    },
+                  )}
+
+
+                  {priorityReceivables.length === 0 && (
+
+                    <div className="priority-debts-empty">
+
+                      <CircleDollarSign
+                        size={28}
+                        aria-hidden="true"
+                      />
+
+                      <strong>
+                        Nuk ka borxhe të hapura
+                      </strong>
+
+                      <span>
+                        Të gjitha pagesat janë
+                        të rregulluara.
+                      </span>
+
+                    </div>
+
                   )}
 
                 </div>
 
               </article>
 
+
+              <aside className="finance-dashboard-aside">
+
+                <article className="recent-activity-card">
+
+                  <header className="finance-card-header">
+
+                    <div>
+                      <h2>Aktiviteti i fundit</h2>
+                    </div>
+
+                  </header>
+
+
+                  <div className="recent-activity-list">
+
+                    {recentActivity.map(
+                      (activity)=>(
+
+                        <div
+                          key={activity.id}
+                          className={
+                            `recent-activity-row is-${activity.type}`
+                          }
+                        >
+
+                          <span
+                            className="recent-activity-dot"
+                            aria-hidden="true"
+                          />
+
+                          <div>
+
+                            <strong>
+                              {activity.title}
+                              {" — "}
+                              {activity.subtitle}
+                            </strong>
+
+                            <small>
+                              {
+                                formatDate(
+                                  activity.date,
+                                )
+                              }
+                            </small>
+
+                          </div>
+
+                        </div>
+
+                      ),
+                    )}
+
+
+                    {recentActivity.length === 0 && (
+
+                      <p className="recent-activity-empty">
+                        Nuk ka aktivitet për këtë muaj.
+                      </p>
+
+                    )}
+
+                  </div>
+
+                </article>
+
+
+                <article className="global-payment-card">
+
+                  <Banknote
+                    size={22}
+                    aria-hidden="true"
+                  />
+
+                  <h2>
+                    Mbyll shumë punë menjëherë
+                  </h2>
+
+                  <p>
+                    {
+                      data.receivables.length
+                    } mjekë kanë detyrime që mund
+                    të menaxhohen nga pagesa globale.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={()=>
+                      navigate(
+                        "/payments",
+                      )
+                    }
+                  >
+                    Shko te pagesa globale
+
+                    <ArrowRight
+                      size={15}
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                </article>
+
+              </aside>
+
             </section>
+
+
+            <footer className="finance-dashboard-footer">
+
+              <span>
+                <BriefcaseBusiness
+                  size={14}
+                  aria-hidden="true"
+                />
+
+                {
+                  data.overview.active_works
+                } punë aktive
+              </span>
+
+              <span>
+                <CircleDollarSign
+                  size={14}
+                  aria-hidden="true"
+                />
+
+                {
+                  data.receivables.length
+                } mjekë me borxh
+              </span>
+
+              <button
+                type="button"
+                onClick={()=>
+                  void loadDashboard()
+                }
+                disabled={isLoading}
+              >
+                <RefreshCw
+                  size={14}
+                  aria-hidden="true"
+                />
+
+                Rifresko
+              </button>
+
+            </footer>
 
           </>
 

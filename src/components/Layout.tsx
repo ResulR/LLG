@@ -1,18 +1,21 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 
 import {
-  LayoutDashboard,
-  Stethoscope,
+  Banknote,
   ClipboardList,
-  CreditCard,
+  LayoutDashboard,
   LogOut,
+  Plus,
+  Stethoscope,
 } from "lucide-react";
 
 import {
+  NavLink,
   useLocation,
   useNavigate,
 } from "react-router-dom";
@@ -38,6 +41,37 @@ type FormDirtyEventDetail = {
 };
 
 
+type NavigationItem = {
+  to:string;
+  label:string;
+  icon:React.ReactNode;
+};
+
+
+const navigationItems:NavigationItem[] = [
+  {
+    to:"/dashboard",
+    label:"Dashboard",
+    icon:<LayoutDashboard size={18} />,
+  },
+  {
+    to:"/doctors",
+    label:"Mjekët",
+    icon:<Stethoscope size={18} />,
+  },
+  {
+    to:"/works",
+    label:"Punët",
+    icon:<ClipboardList size={18} />,
+  },
+  {
+    to:"/payments",
+    label:"Pagesat",
+    icon:<Banknote size={18} />,
+  },
+];
+
+
 export default function Layout({
   children,
 }:Props) {
@@ -54,14 +88,6 @@ export default function Layout({
   const location =
     useLocation();
 
-  const showMonthNavigator =
-    location.pathname === "/dashboard" ||
-    location.pathname === "/works" ||
-    location.pathname === "/payments" ||
-    /^\/doctors\/[^/]+$/.test(
-      location.pathname,
-    );
-
   const dirtyFormsRef =
     useRef<Set<string>>(
       new Set(),
@@ -75,6 +101,93 @@ export default function Layout({
     setEscapeMessage,
   ] =
     useState("");
+
+
+  const showMonthNavigator =
+    location.pathname === "/dashboard" ||
+    location.pathname === "/works" ||
+    location.pathname === "/payments" ||
+    /^\/doctors\/[^/]+$/.test(
+      location.pathname,
+    );
+
+
+  const pageTitle =
+    useMemo(
+      ()=>{
+
+        if(location.pathname === "/dashboard") {
+          return "Dashboard";
+        }
+
+        if(location.pathname === "/doctors") {
+          return "Mjekët";
+        }
+
+        if(
+          /^\/doctors\/[^/]+$/.test(
+            location.pathname,
+          )
+        ) {
+          return "Fleta e mjekut";
+        }
+
+        if(location.pathname === "/works") {
+          return "Punët";
+        }
+
+        if(location.pathname === "/payments") {
+          return "Pagesat";
+        }
+
+        return "DentalTrack";
+
+      },
+      [
+        location.pathname,
+      ],
+    );
+
+
+  const userInitials =
+    useMemo(
+      ()=>{
+
+        const raw =
+          String(
+            user?.userId ?? "DT",
+          )
+            .trim()
+            .replace(
+              /[^a-zA-Z0-9]+/g,
+              " ",
+            );
+
+        const parts =
+          raw
+            .split(/\s+/)
+            .filter(Boolean);
+
+        if(parts.length === 0) {
+          return "DT";
+        }
+
+        if(parts.length === 1) {
+          return parts[0]
+            .slice(0,2)
+            .toUpperCase();
+        }
+
+        return (
+          parts[0][0] +
+          parts[parts.length - 1][0]
+        ).toUpperCase();
+
+      },
+      [
+        user?.userId,
+      ],
+    );
 
 
   async function handleLogout() {
@@ -277,89 +390,100 @@ export default function Layout({
 
       };
 
-  });
+    },
+  );
 
 
   return (
-    <div className="app-layout">
+    <div className="app-layout app-shell">
 
-      <aside className="sidebar">
+      <aside
+        className="sidebar app-rail"
+        aria-label="Navigimi kryesor"
+      >
 
-        <div className="brand">
-          DentalTrack
-        </div>
+        <button
+          type="button"
+          className="app-rail-brand"
+          onClick={()=>
+            navigate(
+              "/dashboard",
+            )
+          }
+          aria-label="DentalTrack — Dashboard"
+          title="DentalTrack"
+        >
+          DT
+        </button>
 
-        <nav>
 
-          <a
-            onClick={
-              ()=>navigate(
-                "/dashboard",
-              )
-            }
-          >
-            <LayoutDashboard size={18} />
-            Dashboard
-          </a>
+        <nav className="app-rail-navigation">
 
-          <a
-            onClick={
-              ()=>navigate(
-                "/doctors",
-              )
-            }
-          >
-            <Stethoscope size={18} />
-            Mjekët
-          </a>
+          {navigationItems.map(
+            (item)=>(
 
-          <a
-            onClick={
-              ()=>navigate(
-                "/works",
-              )
-            }
-          >
-            <ClipboardList size={18} />
-            Punët
-          </a>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive })=>
+                  [
+                    "app-rail-link",
+                    isActive
+                      ? "is-active"
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")
+                }
+                aria-label={item.label}
+                title={item.label}
+              >
+                {item.icon}
 
-          <a
-            onClick={
-              ()=>navigate(
-                "/payments",
-              )
-            }
-          >
-            <CreditCard size={18} />
-            Pagesat
-          </a>
+                <span>
+                  {item.label}
+                </span>
+              </NavLink>
 
-          <button
-            type="button"
-            className="logout"
-            onClick={handleLogout}
-            title="Dil nga sesioni — Esc"
-          >
-            <LogOut size={18} />
-
-            <span>Dil</span>
-
-            <kbd>Esc</kbd>
-          </button>
+            ),
+          )}
 
         </nav>
 
+
+        <button
+          type="button"
+          className="app-rail-account"
+          onClick={handleLogout}
+          aria-label="Dil nga sesioni"
+          title="Dil nga sesioni — Esc"
+        >
+          <span className="app-rail-account-avatar">
+            {userInitials}
+          </span>
+
+          <span className="app-rail-account-label">
+            Dil
+          </span>
+
+          <LogOut
+            className="app-rail-account-logout"
+            size={15}
+            aria-hidden="true"
+          />
+        </button>
+
       </aside>
 
-      <section className="content">
 
-        <header className="topbar">
+      <section className="content app-shell-content">
 
-          <div className="topbar-context">
+        <header className="topbar app-commandbar">
 
-            <span>
-              Paneli kryesor
+          <div className="app-commandbar-context">
+
+            <span className="app-commandbar-title">
+              {pageTitle}
             </span>
 
             {showMonthNavigator && (
@@ -368,13 +492,94 @@ export default function Layout({
 
           </div>
 
-          <small>
-            {user?.userId}
-          </small>
+
+          <div
+          className="app-commandbar-actions"
+          onClickCapture={(event)=>{
+
+            const target =
+              (
+                event.target as HTMLElement
+              ).closest("button");
+
+
+            if(
+              !target ||
+              !target.classList.contains(
+                "is-primary",
+              )
+            ) {
+              return;
+            }
+
+
+            sessionStorage.setItem(
+              "dentaltrack:open-create-work",
+              "1",
+            );
+
+
+            if(
+              location.pathname === "/works"
+            ) {
+
+              event.preventDefault();
+              event.stopPropagation();
+
+              window.dispatchEvent(
+                new Event(
+                  "dentaltrack:open-create-work",
+                ),
+              );
+
+            }
+
+          }}
+        >
+
+            <button
+              type="button"
+              className="app-command-button is-primary"
+              onClick={()=>
+                navigate(
+                  "/works",
+                )
+              }
+            >
+              <Plus
+                size={16}
+                aria-hidden="true"
+              />
+
+              <span>Punë e re</span>
+            </button>
+
+
+            <button
+              type="button"
+              className="app-command-button is-accent"
+              onClick={()=>
+                navigate(
+                  "/payments",
+                )
+              }
+            >
+              <Banknote
+                size={16}
+                aria-hidden="true"
+              />
+
+              <span>Pagesë</span>
+            </button>
+
+          </div>
 
         </header>
 
-        {children}
+
+        <div className="app-shell-page">
+          {children}
+        </div>
 
       </section>
 

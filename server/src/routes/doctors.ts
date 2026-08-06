@@ -12,19 +12,213 @@ router.get("/", requireAuth, async (_req, res) => {
   try {
 
     const result = await pool.query(`
+      WITH individual_payments AS (
+        SELECT
+          work_id,
+
+          COALESCE(
+            SUM(amount),
+            0
+          ) AS paid_amount
+
+        FROM payments
+
+        WHERE payment_type = 'individual'
+          AND work_id IS NOT NULL
+
+        GROUP BY work_id
+      ),
+
+      work_finances AS (
+        SELECT
+          w.doctor_id,
+
+          COALESCE(
+            SUM(w.total_amount)
+              FILTER (
+                WHERE w.status = 'active'
+              ),
+            0
+          ) AS active_work_total,
+
+          COALESCE(
+            SUM(
+              CASE
+                WHEN w.status = 'active'
+                  AND w.payment_status IN (
+                    'unpaid',
+                    'partial'
+                  )
+                THEN GREATEST(
+                  w.total_amount
+                    - COALESCE(
+                        ip.paid_amount,
+                        0
+                      ),
+                  0
+                )
+
+                ELSE 0
+              END
+            ),
+            0
+          ) AS open_work_balance,
+
+          COUNT(*)
+            FILTER (
+              WHERE w.status = 'active'
+            )::int AS active_work_count,
+
+          COUNT(*)::int AS total_work_count,
+
+          COUNT(*)
+            FILTER (
+              WHERE w.status = 'active'
+                AND w.payment_status IN (
+                  'unpaid',
+                  'partial'
+                )
+            )::int AS unpaid_work_count
+
+        FROM works w
+
+        LEFT JOIN individual_payments ip
+          ON ip.work_id = w.id
+
+        GROUP BY w.doctor_id
+      ),
+
+      settlement_totals AS (
+        SELECT
+          doctor_id,
+
+          COALESCE(
+            SUM(works_total),
+            0
+          ) AS total
+
+        FROM doctor_settlements
+
+        GROUP BY doctor_id
+      ),
+
+      global_operations AS (
+        SELECT
+          doctor_id,
+
+          COALESCE(
+            SUM(adjustment_amount),
+            0
+          ) AS adjustment_total,
+
+          COALESCE(
+            SUM(
+              amount + adjustment_amount
+            ),
+            0
+          ) AS covered_total
+
+        FROM payments
+
+        WHERE payment_type = 'global'
+
+        GROUP BY doctor_id
+      ),
+
+      payment_totals AS (
+        SELECT
+          doctor_id,
+
+          COALESCE(
+            SUM(amount),
+            0
+          ) AS total_paid
+
+        FROM payments
+
+        GROUP BY doctor_id
+      )
+
       SELECT
-        id,
-        name,
-        phone,
-        active,
-        created_at,
-        updated_at
-      FROM doctors
-      ORDER BY created_at DESC
+        d.id,
+        d.name,
+        d.phone,
+        d.active,
+        d.created_at,
+        d.updated_at,
+
+        GREATEST(
+          COALESCE(
+            wf.active_work_total,
+            0
+          )
+            - COALESCE(
+                go.adjustment_total,
+                0
+              ),
+          0
+        ) AS total_billed,
+
+        COALESCE(
+          pt.total_paid,
+          0
+        ) AS total_paid,
+
+        COALESCE(
+          wf.open_work_balance,
+          0
+        )
+        +
+        GREATEST(
+          COALESCE(
+            st.total,
+            0
+          )
+            - COALESCE(
+                go.covered_total,
+                0
+              ),
+          0
+        ) AS outstanding_balance,
+
+        COALESCE(
+          wf.active_work_count,
+          0
+        )::int AS active_work_count,
+
+        COALESCE(
+          wf.total_work_count,
+          0
+        )::int AS total_work_count,
+
+        COALESCE(
+          wf.unpaid_work_count,
+          0
+        )::int AS unpaid_work_count
+
+      FROM doctors d
+
+      LEFT JOIN work_finances wf
+        ON wf.doctor_id = d.id
+
+      LEFT JOIN settlement_totals st
+        ON st.doctor_id = d.id
+
+      LEFT JOIN global_operations go
+        ON go.doctor_id = d.id
+
+      LEFT JOIN payment_totals pt
+        ON pt.doctor_id = d.id
+
+      ORDER BY
+        d.active DESC,
+        d.created_at DESC
     `);
 
 
-    return res.json(result.rows);
+    return res.json(
+      result.rows,
+    );
 
 
   } catch(error) {

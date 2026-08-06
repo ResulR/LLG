@@ -164,6 +164,7 @@ router.post("/", requireAuth, async (req, res) => {
 
   const {
     doctor_id,
+    work_date,
     patient_first_name,
     patient_last_name,
     teeth,
@@ -187,6 +188,55 @@ router.post("/", requireAuth, async (req, res) => {
 
   const cleanDescription =
     String(description ?? "").trim();
+
+
+  const cleanWorkDate =
+    String(work_date ?? "").trim();
+
+
+  const workDateMatch =
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(
+      cleanWorkDate,
+    );
+
+
+  let workYear = 0;
+  let workMonth = 0;
+  let workDay = 0;
+  let validWorkDate = false;
+
+
+  if(workDateMatch){
+
+    workYear =
+      Number(workDateMatch[1]);
+
+    workMonth =
+      Number(workDateMatch[2]);
+
+    workDay =
+      Number(workDateMatch[3]);
+
+
+    const candidateDate =
+      new Date(
+        Date.UTC(
+          workYear,
+          workMonth - 1,
+          workDay,
+        ),
+      );
+
+
+    validWorkDate =
+      candidateDate.getUTCFullYear() ===
+        workYear &&
+      candidateDate.getUTCMonth() ===
+        workMonth - 1 &&
+      candidateDate.getUTCDate() ===
+        workDay;
+
+  }
 
 
   const isRepeat =
@@ -220,6 +270,15 @@ router.post("/", requireAuth, async (req, res) => {
   }
 
 
+  if(!validWorkDate){
+
+    return res.status(400).json({
+      error:"invalid_work_date",
+    });
+
+  }
+
+
 
   if(cleanDescription.length > 2000) {
 
@@ -233,7 +292,11 @@ router.post("/", requireAuth, async (req, res) => {
 
   if (
     !Number.isFinite(price) ||
-    price < 0
+    price < 0 ||
+    (
+      !isRepeat &&
+      price === 0
+    )
   ) {
 
     return res.status(400).json({
@@ -398,11 +461,9 @@ router.post("/", requireAuth, async (req, res) => {
 
 
 
-    const now = new Date();
+    const year = workYear;
 
-    const year = now.getFullYear();
-
-    const month = now.getMonth()+1;
+    const month = workMonth;
 
 
 
@@ -464,6 +525,7 @@ router.post("/", requireAuth, async (req, res) => {
         year,
         month,
         monthly_number,
+        work_date,
         material_id,
         color_id,
         description,
@@ -475,7 +537,7 @@ router.post("/", requireAuth, async (req, res) => {
       )
 
       VALUES(
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active'
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'active'
       )
 
       RETURNING *
@@ -486,6 +548,7 @@ router.post("/", requireAuth, async (req, res) => {
         year,
         month,
         monthlyNumber,
+        cleanWorkDate,
         material_id || null,
         color_id || null,
         cleanDescription || null,
@@ -644,7 +707,11 @@ router.put("/:id", requireAuth, async (req, res) => {
 
   if(
     !Number.isFinite(price) ||
-    price <= 0
+    price < 0 ||
+    (
+      !isRepeat &&
+      price === 0
+    )
   ){
 
     return res.status(400).json({

@@ -83,6 +83,9 @@ type PaymentView =
   "history";
 
 
+const HISTORY_PAGE_SIZE = 10;
+
+
 const upperLeft = [18,17,16,15,14,13,12,11];
 const upperRight = [21,22,23,24,25,26,27,28];
 const lowerLeft = [48,47,46,45,44,43,42,41];
@@ -429,6 +432,10 @@ export default function Payments() {
     useState<PaymentView>(
       "individual",
     );
+
+
+  const [historyPage,setHistoryPage] =
+    useState(1);
 
 
   const workPaymentIsDirty =
@@ -1324,530 +1331,267 @@ export default function Payments() {
   }
 
 
+  const selectedWorkFinalAmount =
+    selectedWork
+      ? (
+          workHasFinalPriceChange
+            ? Number(
+                workFinalAmount ||
+                selectedWork.total_amount,
+              )
+            : Number(
+                selectedWork.total_amount,
+              )
+        )
+      : 0;
+
+
+  const selectedWorkRemainingAfterPayment =
+    selectedWork
+      ? Math.max(
+          selectedWorkFinalAmount
+          - Number(
+              selectedWork.paid_amount || 0,
+            )
+          - Number(workAmount || 0),
+          0,
+        )
+      : 0;
+
+
+  const currentGlobalDebt =
+    Number(
+      selectedGlobalBalance
+        ?.global_balance ?? 0,
+    )
+    + selectedWorksTotal;
+
+
+  const currentGlobalFinalAmount =
+    globalHasDiscount
+      ? Number(
+          globalDiscount ||
+          currentGlobalDebt,
+        )
+      : currentGlobalDebt;
+
+
+  const currentGlobalRemaining =
+    Math.max(
+      currentGlobalFinalAmount
+      - Number(globalAmount || 0),
+      0,
+    );
+
+
+  const historyTotalPages =
+    Math.max(
+      Math.ceil(
+        payments.length /
+        HISTORY_PAGE_SIZE,
+      ),
+      1,
+    );
+
+
+  const safeHistoryPage =
+    Math.min(
+      historyPage,
+      historyTotalPages,
+    );
+
+
+  const paginatedPayments =
+    payments.slice(
+      (
+        safeHistoryPage - 1
+      ) * HISTORY_PAGE_SIZE,
+      safeHistoryPage *
+        HISTORY_PAGE_SIZE,
+    );
+
+
+  function changeHistoryPage(
+    nextPage:number,
+  ) {
+
+    setHistoryPage(
+      Math.min(
+        Math.max(nextPage,1),
+        historyTotalPages,
+      ),
+    );
+
+  }
+
+
   return (
     <Layout>
 
-      <main className="payments-page payments-v2">
+      <main className="claude-payments">
 
-        <header className="payments-page-header">
+        <section className="claude-payments-shell">
 
-          <div>
-
-            <span className="payments-eyebrow">
-              Menaxhimi financiar
-            </span>
-
-            <h1>Pagesat</h1>
-
-            <p>
-              Regjistroni pagesat sipas punës
-              ose mbyllni disa punë me një
-              pagesë globale.
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            className="payments-refresh-button"
-            onClick={loadData}
-            disabled={isLoading}
-          >
-            ↻ Rifresko
-          </button>
-
-        </header>
-
-
-        {message && (
-
-          <AppToast
-            message={message}
-            type={
-              messageType === "success"
-                ? "success"
-                : "error"
-            }
-            onClose={()=>{
-
-              setMessage("");
-              setMessageType("");
-
-            }}
-          />
-
-        )}
-
-
-        <section className="payments-kpi-grid">
-
-          <article className="payments-kpi-card is-balance">
-            <div className="payments-kpi-icon">
-              ≈
-            </div>
+          <header className="claude-payments-header">
 
             <div>
-              <span>Borxhi i punëve</span>
+              <span>Pagesat</span>
 
-              <strong>
+              <h1>Pagesat</h1>
+
+              <p>
+                Borxh i gjithsej{" "}
+                <strong>
+                  {formatMoney(
+                    totalIndividualDebt
+                    + totalGlobalDebt,
+                  )} €
+                </strong>
+                {" · "}
+                nga punët{" "}
                 {formatMoney(
                   totalIndividualDebt,
                 )} €
-              </strong>
-
-              <small>
-                Punë ende të pambyllura
-              </small>
-            </div>
-          </article>
-
-
-          <article className="payments-kpi-card is-billed">
-            <div className="payments-kpi-icon">
-              ▣
-            </div>
-
-            <div>
-              <span>Punë për pagesë</span>
-
-              <strong>
-                {works.length}
-              </strong>
-
-              <small>
-                Të papaguara ose të pjesshme
-              </small>
-            </div>
-          </article>
-
-
-          <article className="payments-kpi-card is-count">
-            <div className="payments-kpi-icon">
-              ↗
-            </div>
-
-            <div>
-              <span>Borxhi global</span>
-
-              <strong>
+                {" · "}
+                global{" "}
                 {formatMoney(
                   totalGlobalDebt,
                 )} €
-              </strong>
-
-              <small>
-                Nga punët e mbyllura në grup
-              </small>
-            </div>
-          </article>
-
-
-          <article className="payments-kpi-card is-paid">
-            <div className="payments-kpi-icon">
-              €
-            </div>
-
-            <div>
-              <span>Pagesa të regjistruara</span>
-
-              <strong>
-                {payments.length}
-              </strong>
-
-              <small>
-                Historiku aktual
-              </small>
-            </div>
-          </article>
-
-        </section>
-
-
-        <nav
-          className="payments-view-tabs"
-          role="tablist"
-          aria-label="Seksionet e pagesave"
-        >
-
-          <button
-            id="payments-tab-individual"
-            type="button"
-            role="tab"
-            aria-selected={
-              activeView === "individual"
-            }
-            aria-controls="payments-panel-individual"
-            className={
-              activeView === "individual"
-                ? "is-active"
-                : ""
-            }
-            onClick={()=>
-              setActiveView(
-                "individual",
-              )
-            }
-          >
-            <span>1</span>
-
-            <div>
-              <strong>Sipas punës</strong>
-              <small>Pagesë individuale</small>
-            </div>
-          </button>
-
-
-          <button
-            id="payments-tab-global"
-            type="button"
-            role="tab"
-            aria-selected={
-              activeView === "global"
-            }
-            aria-controls="payments-panel-global"
-            className={
-              activeView === "global"
-                ? "is-active"
-                : ""
-            }
-            onClick={()=>
-              setActiveView(
-                "global",
-              )
-            }
-          >
-            <span>2</span>
-
-            <div>
-              <strong>Pagesë globale</strong>
-              <small>Disa punë së bashku</small>
-            </div>
-          </button>
-
-
-          <button
-            id="payments-tab-history"
-            type="button"
-            role="tab"
-            aria-selected={
-              activeView === "history"
-            }
-            aria-controls="payments-panel-history"
-            className={
-              activeView === "history"
-                ? "is-active"
-                : ""
-            }
-            onClick={()=>
-              setActiveView(
-                "history",
-              )
-            }
-          >
-            <span>3</span>
-
-            <div>
-              <strong>Historiku</strong>
-              <small>Pagesat e regjistruara</small>
-            </div>
-          </button>
-
-        </nav>
-
-
-        <section
-          id="payments-panel-individual"
-          className="payment-work-section"
-          role="tabpanel"
-          aria-labelledby="payments-tab-individual"
-          hidden={
-            activeView !== "individual"
-          }
-        >
-
-          <div className="payments-history-header">
-
-            <div className="payments-section-title">
-
-              <span className="payments-section-icon">
-                1
-              </span>
-
-              <div>
-                <h2>Pagesa sipas punës</h2>
-
-                <p>
-                  Zgjidhni një punë për të
-                  regjistruar një pagesë të
-                  plotë ose të pjesshme.
-                </p>
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div className="payments-filters">
-
-            <div className="payments-search">
-
-              <span>⌕</span>
-
-              <input
-                type="search"
-                value={search}
-                onChange={(event)=>
-                  setSearch(
-                    event.target.value,
-                  )
-                }
-                placeholder="Kërko punën, pacientin ose mjekun..."
-              />
-
-            </div>
-
-
-            <select
-              value={doctorFilter}
-              onChange={(event)=>
-                setDoctorFilter(
-                  event.target.value,
-                )
-              }
-            >
-              <option value="all">
-                Të gjithë mjekët
-              </option>
-
-              {doctors.map((doctor)=>(
-                <option
-                  key={doctor.id}
-                  value={doctor.id}
-                >
-                  {doctor.name}
-                </option>
-              ))}
-            </select>
-
-
-            <select
-              value={sortDirection}
-              onChange={(event)=>
-                setSortDirection(
-                  event.target.value as
-                    "asc"|"desc",
-                )
-              }
-            >
-              <option value="asc">
-                Më të vjetrat së pari
-              </option>
-
-              <option value="desc">
-                Më të rejat së pari
-              </option>
-            </select>
-
-          </div>
-
-
-          <div className="payments-table-scroll payment-work-table-scroll">
-
-            <table className="payments-table payment-work-table">
-
-              <thead>
-                <tr>
-                  <th>Nr.</th>
-                  <th>Data</th>
-                  <th>Mjeku</th>
-                  <th>Pacienti</th>
-                  <th>Totali</th>
-                  <th>Paguar</th>
-                  <th>Mbetja</th>
-                  <th>Statusi</th>
-                </tr>
-              </thead>
-
-
-              <tbody>
-
-                {filteredWorks.map((work)=>(
-                  <tr
-                    key={work.id}
-                    className="payment-work-row"
-                    tabIndex={0}
-                    role="button"
-                    aria-label={
-                      `Hap punën ${getWorkNumber(work)}`
-                    }
-                    onClick={()=>
-                      openWork(work)
-                    }
-                    onKeyDown={(event)=>{
-
-                      if(
-                        event.key === "Enter" ||
-                        event.key === " "
-                      ) {
-
-                        event.preventDefault();
-                        openWork(work);
-
-                      }
-
-                    }}
-                  >
-
-                    <td>
-                      <strong>
-                        {getWorkNumber(work)}
-                      </strong>
-                    </td>
-
-                    <td>
-                      {formatDate(
-                        work.work_date,
-                      )}
-                    </td>
-
-                    <td>
-                      {work.doctor_name}
-                    </td>
-
-                    <td>
-                      {work.first_name}{" "}
-                      {work.last_name}
-                    </td>
-
-                    <td>
-                      {formatMoney(
-                        work.total_amount,
-                      )} €
-                    </td>
-
-                    <td className="is-paid">
-                      {formatMoney(
-                        work.paid_amount,
-                      )} €
-                    </td>
-
-                    <td className="is-balance">
-                      <strong>
-                        {formatMoney(
-                          work.remaining_amount,
-                        )} €
-                      </strong>
-                    </td>
-
-                    <td>
-                      <span
-                        className={
-                          `payment-work-status is-${work.payment_status}`
-                        }
-                      >
-                        {
-                          getPaymentStatusLabel(
-                            work.payment_status,
-                          )
-                        }
-                      </span>
-                    </td>
-
-                  </tr>
-                ))}
-
-
-                {!isLoading &&
-                  filteredWorks.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="payments-empty"
-                      >
-                        Nuk ka punë për pagesë.
-                      </td>
-                    </tr>
-                  )}
-
-
-                {isLoading && (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="payments-empty"
-                    >
-                      Duke ngarkuar...
-                    </td>
-                  </tr>
-                )}
-
-              </tbody>
-
-            </table>
-
-          </div>
-
-        </section>
-
-
-        <section
-          id="payments-panel-global"
-          className="payment-global-section"
-          role="tabpanel"
-          aria-labelledby="payments-tab-global"
-          hidden={
-            activeView !== "global"
-          }
-        >
-
-          <div className="payments-section-title">
-
-            <span className="payments-section-icon is-summary">
-              2
-            </span>
-
-            <div>
-              <h2>Pagesa globale e mjekut</h2>
-
-              <p>
-                Të gjitha punët zgjidhen
-                automatikisht. Mund të hiqni
-                vetëm ato që nuk dëshironi
-                t'i mbyllni.
               </p>
             </div>
 
-          </div>
+            <button
+              type="button"
+              className="claude-payments-refresh"
+              onClick={loadData}
+              disabled={isLoading}
+            >
+              ↻ Rifresko
+            </button>
+
+          </header>
 
 
-          <form
-            className="payment-global-form"
-            onSubmit={submitGlobalSettlement}
+          {message && (
+
+            <AppToast
+              message={message}
+              type={
+                messageType === "success"
+                  ? "success"
+                  : "error"
+              }
+              onClose={()=>{
+
+                setMessage("");
+                setMessageType("");
+
+              }}
+            />
+
+          )}
+
+
+          <nav
+            className="claude-payment-tabs"
+            role="tablist"
+            aria-label="Seksionet e pagesave"
           >
 
-            <div className="payment-global-fields">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={
+                activeView === "individual"
+              }
+              className={
+                activeView === "individual"
+                  ? "is-active"
+                  : ""
+              }
+              onClick={()=>
+                setActiveView("individual")
+              }
+            >
+              Sipas punës
+            </button>
 
-              <label className="payments-field">
-                <span>Mjeku</span>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={
+                activeView === "global"
+              }
+              className={
+                activeView === "global"
+                  ? "is-active"
+                  : ""
+              }
+              onClick={()=>
+                setActiveView("global")
+              }
+            >
+              Pagesë globale
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={
+                activeView === "history"
+              }
+              className={
+                activeView === "history"
+                  ? "is-active"
+                  : ""
+              }
+              onClick={()=>{
+
+                setActiveView("history");
+                setHistoryPage(1);
+
+              }}
+            >
+              Historiku
+            </button>
+
+          </nav>
+
+
+          {activeView === "individual" && (
+
+            <section className="claude-payment-panel">
+
+              <div className="claude-payment-toolbar">
+
+                <label className="claude-payment-search">
+
+                  <span>⌕</span>
+
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(event)=>
+                      setSearch(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Kërko punën, pacientin, mjekun..."
+                  />
+
+                </label>
+
 
                 <select
-                  value={globalDoctorId}
-                  onChange={(event)=>{
-
-                    setGlobalDoctorId(
+                  value={doctorFilter}
+                  onChange={(event)=>
+                    setDoctorFilter(
                       event.target.value,
-                    );
-
-                    setIsGlobalWorksExpanded(
-                      false,
-                    );
-
-                  }}
-                  required
+                    )
+                  }
                 >
-                  <option value="">
-                    Zgjidh mjekun
+                  <option value="all">
+                    Të gjithë mjekët
                   </option>
 
                   {doctors.map((doctor)=>(
@@ -1859,288 +1603,454 @@ export default function Payments() {
                     </option>
                   ))}
                 </select>
-              </label>
 
 
-              <label className="payments-field">
-                <span>Data e pagesës</span>
-
-                <input
-                  type="date"
-                  value={globalPaymentDate}
+                <select
+                  value={sortDirection}
                   onChange={(event)=>
-                    setGlobalPaymentDate(
-                      event.target.value,
+                    setSortDirection(
+                      event.target.value as
+                        "asc"|"desc",
                     )
                   }
-                  required
-                />
-              </label>
+                >
+                  <option value="asc">
+                    Më të vjetrat
+                  </option>
 
-            </div>
+                  <option value="desc">
+                    Më të rejat
+                  </option>
+                </select>
+
+              </div>
 
 
-            {globalDoctorId ? (
+              <div className="claude-payment-work-list">
 
-              <div className="payment-global-work-picker">
+                {filteredWorks.map((work)=>(
 
-                <div className="payment-global-picker-header">
-
-                  <div>
-                    <strong>
-                      Punët e zgjedhura për pagesë
-                    </strong>
-
-                    <span>
-                      {
-                        selectedGlobalWorkIds.length
-                      } nga{" "}
-                      {
-                        selectedGlobalDoctorWorks.length
-                      } të zgjedhura
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={
-                      isGlobalWorksExpanded
-                        ? "payment-global-toggle is-expanded"
-                        : "payment-global-toggle"
-                    }
-                    onClick={()=>
-                      setIsGlobalWorksExpanded(
-                        (value)=>!value,
-                      )
-                    }
-                    aria-expanded={
-                      isGlobalWorksExpanded
-                    }
+                  <article
+                    key={work.id}
+                    className="claude-payment-work-row"
                   >
-                    <span>
-                      {
-                        isGlobalWorksExpanded
-                          ? "Mbyll"
-                          : "Hap"
+
+                    <button
+                      type="button"
+                      className="claude-payment-work-main"
+                      onClick={()=>
+                        openWork(work)
                       }
-                    </span>
+                    >
 
-                    <i aria-hidden="true">
-                      ⌄
-                    </i>
-                  </button>
+                      <strong>
+                        {getWorkNumber(work)}
+                      </strong>
 
-                </div>
+                      <time>
+                        {formatDate(
+                          work.work_date,
+                        )}
+                      </time>
 
+                      <span>
+                        {work.doctor_name}
+                      </span>
 
-                {isGlobalWorksExpanded && (
-                  <div className="payment-global-works-collapsible-content">
+                      <span>
+                        {work.first_name}{" "}
+                        {work.last_name}
+                      </span>
 
-                    <div className="payment-global-works-actions">
+                      <b>
+                        {formatMoney(
+                          work.total_amount,
+                        )} €
+                      </b>
 
-                      <button
-                        type="button"
-                        className="payment-select-all-button"
-                        onClick={
-                          selectAllGlobalWorks
+                      <b className="is-paid">
+                        {formatMoney(
+                          work.paid_amount,
+                        )} €
+                      </b>
+
+                      <b
+                        className={
+                          Number(
+                            work.remaining_amount,
+                          ) > 0
+                            ? "is-balance"
+                            : "is-paid"
                         }
                       >
-                        Zgjidh të gjitha
-                      </button>
+                        {formatMoney(
+                          work.remaining_amount,
+                        )} €
+                      </b>
 
-                      <button
-                        type="button"
-                        className="payment-clear-all-button"
-                        onClick={()=>
-                          setSelectedGlobalWorkIds([])
-                        }
-                      >
-                        Hiq të gjitha
-                      </button>
-
-                    </div>
+                    </button>
 
 
-                    <div className="payment-global-work-list">
-
-                      {selectedGlobalDoctorWorks.map(
-                        (work)=>(
-                          <label
-                            key={work.id}
-                            className={
-                              selectedGlobalWorkIds.includes(
-                                String(work.id),
-                              )
-                                ? "is-selected"
-                                : ""
-                            }
-                          >
-
-                            <input
-                              type="checkbox"
-                              checked={
-                                selectedGlobalWorkIds.includes(
-                                  String(work.id),
-                                )
-                              }
-                              onChange={()=>
-                                toggleGlobalWork(
-                                  String(work.id),
-                                )
-                              }
-                            />
-
-                            <span>
-                              <strong>
-                                {getWorkNumber(work)}
-                              </strong>
-
-                              <small>
-                                {work.first_name}{" "}
-                                {work.last_name}
-                              </small>
-                            </span>
-
-                            <strong>
-                              {formatMoney(
-                                work.remaining_amount,
-                              )} €
-                            </strong>
-
-                          </label>
-                        ),
-                      )}
-
-                      {
-                        selectedGlobalDoctorWorks
-                          .length === 0 && (
-                          <div className="payments-empty">
-                            Ky mjek nuk ka punë të
-                            hapura për pagesë.
-                          </div>
-                        )
+                    <button
+                      type="button"
+                      className={
+                        work.payment_status ===
+                        "partial"
+                          ? "claude-payment-pay-button is-partial"
+                          : "claude-payment-pay-button"
                       }
+                      onClick={()=>
+                        openWork(work)
+                      }
+                    >
+                      €
+                      {" "}
+                      {
+                        work.payment_status ===
+                        "partial"
+                          ? "Vazhdo pagesën"
+                          : "Paguaj"
+                      }
+                    </button>
 
+                  </article>
+
+                ))}
+
+
+                {!isLoading &&
+                  filteredWorks.length === 0 && (
+
+                    <div className="claude-payment-empty">
+                      Nuk ka punë për pagesë.
                     </div>
 
+                  )}
+
+
+                {isLoading && (
+
+                  <div className="claude-payment-empty">
+                    Duke ngarkuar...
                   </div>
+
                 )}
 
               </div>
 
-            ) : (
+            </section>
 
-              <div className="payment-global-placeholder">
-                Zgjidhni një mjek për të
-                shfaqur punët e tij.
-              </div>
-
-            )}
+          )}
 
 
-            <div className="payment-global-summary">
+          {activeView === "global" && (
 
-              <div>
-                <span>Borxhi global ekzistues</span>
+            <section className="claude-global-payment">
 
-                <strong>
-                  {formatMoney(
+              <header>
+                <span>Pagesë globale</span>
+
+                <h2>
+                  {
                     selectedGlobalBalance
-                      ?.global_balance ?? 0,
-                  )} €
-                </strong>
-              </div>
-
-              <div>
-                <span>Punët e reja të zgjedhura</span>
-
-                <strong>
-                  {formatMoney(
-                    selectedWorksTotal,
-                  )} €
-                </strong>
-              </div>
-
-              <div className="is-total">
-                <span>Borxhi total</span>
-
-                <strong>
-                  {formatMoney(
-                    Number(
-                      selectedGlobalBalance
-                        ?.global_balance ?? 0,
-                    )
-                    + selectedWorksTotal,
-                  )} €
-                </strong>
-              </div>
-
-            </div>
+                      ?.doctor_name ??
+                    "Pagesa globale e mjekut"
+                  }
+                </h2>
+              </header>
 
 
-            <div className="payment-global-fields">
+              <form
+                onSubmit={
+                  submitGlobalSettlement
+                }
+              >
 
-              <label className="payment-discount-toggle">
+                <div className="claude-global-primary-fields">
 
-                <input
-                  type="checkbox"
-                  checked={globalHasDiscount}
-                  onChange={(event)=>{
+                  <label>
+                    <span>Mjeku</span>
 
-                    const checked =
-                      event.target.checked;
+                    <select
+                      value={globalDoctorId}
+                      onChange={(event)=>{
 
-                    setGlobalHasDiscount(
-                      checked,
-                    );
+                        setGlobalDoctorId(
+                          event.target.value,
+                        );
 
-                    setGlobalDiscount(
-                      checked
-                        ? (
-                            Number(
-                              selectedGlobalBalance
-                                ?.global_balance ?? 0,
-                            )
-                            + selectedWorksTotal
-                          ).toFixed(2)
-                        : "",
-                    );
+                        setIsGlobalWorksExpanded(
+                          true,
+                        );
 
-                  }}
-                />
+                      }}
+                      required
+                    >
+                      <option value="">
+                        Zgjidh mjekun
+                      </option>
 
-                <span />
+                      {doctors.map((doctor)=>(
+                        <option
+                          key={doctor.id}
+                          value={doctor.id}
+                        >
+                          {doctor.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                <div>
-                  <strong>
-                    Ndrysho shumën finale
-                  </strong>
 
-                  <small>
-                    Vendosni shumën finale që
-                    duhet të paguajë mjeku.
-                  </small>
+                  <label>
+                    <span>Data e pagesës</span>
+
+                    <input
+                      type="date"
+                      value={globalPaymentDate}
+                      onChange={(event)=>
+                        setGlobalPaymentDate(
+                          event.target.value,
+                        )
+                      }
+                      required
+                    />
+                  </label>
+
                 </div>
 
-              </label>
+
+                {globalDoctorId ? (
+
+                  <>
+
+                    <div className="claude-global-debt">
+
+                      <div>
+                        <span>
+                          Borxhi total
+                        </span>
+
+                        <strong>
+                          {formatMoney(
+                            currentGlobalDebt,
+                          )} €
+                        </strong>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={()=>
+                          setIsGlobalWorksExpanded(
+                            (value)=>!value,
+                          )
+                        }
+                      >
+                        {
+                          isGlobalWorksExpanded
+                            ? "Mbyll listën"
+                            : `Shiko ${selectedGlobalDoctorWorks.length} punë →`
+                        }
+                      </button>
+
+                    </div>
 
 
-              {globalHasDiscount && (
-                <label className="payments-field">
-                  <span>
-                    Shuma finale e faturuar
-                  </span>
+                    {isGlobalWorksExpanded && (
 
-                  <div className="payments-amount-input">
+                      <div className="claude-global-works">
+
+                        <div className="claude-global-works-title">
+
+                          <strong>
+                            Punët e zgjedhura për
+                            t'u mbyllur
+                          </strong>
+
+                          <button
+                            type="button"
+                            onClick={
+                              selectAllGlobalWorks
+                            }
+                          >
+                            {
+                              selectedGlobalWorkIds
+                                .length ===
+                              selectedGlobalDoctorWorks
+                                .length
+                                ? "Hiq të gjitha"
+                                : "Zgjidh të gjitha"
+                            }
+                          </button>
+
+                        </div>
+
+
+                        {selectedGlobalDoctorWorks.map(
+                          (work)=>(
+
+                            <label
+                              key={work.id}
+                              className={
+                                selectedGlobalWorkIds
+                                  .includes(
+                                    String(work.id),
+                                  )
+                                  ? "is-selected"
+                                  : ""
+                              }
+                            >
+
+                              <input
+                                type="checkbox"
+                                checked={
+                                  selectedGlobalWorkIds
+                                    .includes(
+                                      String(work.id),
+                                    )
+                                }
+                                onChange={()=>
+                                  toggleGlobalWork(
+                                    String(work.id),
+                                  )
+                                }
+                              />
+
+                              <span>
+                                <strong>
+                                  {getWorkNumber(work)}
+                                  {" · "}
+                                  {work.first_name}{" "}
+                                  {work.last_name}
+                                </strong>
+
+                                <small>
+                                  {formatDate(
+                                    work.work_date,
+                                  )}
+                                </small>
+                              </span>
+
+                              <b>
+                                {formatMoney(
+                                  work.remaining_amount,
+                                )} €
+                              </b>
+
+                            </label>
+
+                          ),
+                        )}
+
+
+                        {
+                          selectedGlobalDoctorWorks
+                            .length === 0 && (
+
+                            <div className="claude-payment-empty">
+                              Ky mjek nuk ka punë
+                              të hapura.
+                            </div>
+
+                          )
+                        }
+
+                      </div>
+
+                    )}
+
+                  </>
+
+                ) : (
+
+                  <div className="claude-global-placeholder">
+                    Zgjidhni një mjek për të
+                    shfaqur punët dhe borxhin e tij.
+                  </div>
+
+                )}
+
+
+                <label className="claude-payment-switch">
+
+                  <input
+                    type="checkbox"
+                    checked={globalHasDiscount}
+                    onChange={(event)=>{
+
+                      const checked =
+                        event.target.checked;
+
+                      setGlobalHasDiscount(
+                        checked,
+                      );
+
+                      setGlobalDiscount(
+                        checked
+                          ? currentGlobalDebt
+                              .toFixed(2)
+                          : "",
+                      );
+
+                    }}
+                  />
+
+                  <span />
+
+                  <div>
+                    <strong>
+                      Ndrysho shumën finale
+                    </strong>
+
+                    <small>
+                      Vendosni shumën finale që
+                      duhet të paguajë mjeku.
+                    </small>
+                  </div>
+
+                </label>
+
+
+                {globalHasDiscount && (
+
+                  <label className="claude-payment-field">
+                    <span>
+                      Shuma finale e faturuar
+                    </span>
+
+                    <div className="claude-money-input">
+                      <span>€</span>
+
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={globalDiscount}
+                        onChange={(event)=>
+                          setGlobalDiscount(
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  </label>
+
+                )}
+
+
+                <label className="claude-payment-field">
+                  <span>Shuma e paguar tani</span>
+
+                  <div className="claude-money-input">
                     <span>€</span>
 
                     <input
                       type="number"
                       min="0"
                       step="0.01"
-                      value={globalDiscount}
+                      value={globalAmount}
                       onChange={(event)=>
-                        setGlobalDiscount(
+                        setGlobalAmount(
                           event.target.value,
                         )
                       }
@@ -2148,179 +2058,281 @@ export default function Payments() {
                     />
                   </div>
                 </label>
-              )}
 
 
-              <label className="payments-field">
-                <span>Shuma e paguar</span>
-
-                <div className="payments-amount-input">
-                  <span>€</span>
+                <label className="claude-payment-field">
+                  <span>Shënim</span>
 
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={globalAmount}
+                    type="text"
+                    value={globalNote}
                     onChange={(event)=>
-                      setGlobalAmount(
+                      setGlobalNote(
                         event.target.value,
                       )
                     }
-                    placeholder="0.00"
+                    maxLength={500}
+                    placeholder="P.sh. pagesa e fundit të muajit..."
                   />
+                </label>
+
+
+                <div className="claude-global-bottom">
+
+                  <dl>
+
+                    <div>
+                      <dt>Borxhi para</dt>
+
+                      <dd>
+                        {formatMoney(
+                          currentGlobalFinalAmount,
+                        )} €
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Paguar tani</dt>
+
+                      <dd className="is-paid">
+                        {formatMoney(
+                          Number(
+                            globalAmount || 0,
+                          ),
+                        )} €
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Borxhi i mbetur</dt>
+
+                      <dd className="is-balance">
+                        {formatMoney(
+                          currentGlobalRemaining,
+                        )} €
+                      </dd>
+                    </div>
+
+                  </dl>
+
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                  >
+                    {
+                      isSubmitting
+                        ? "Duke u regjistruar..."
+                        : selectedGlobalWorkIds
+                            .length > 0
+                          ? `Mbyll ${selectedGlobalWorkIds.length} punë dhe regjistro pagesën`
+                          : "Regjistro pagesën"
+                    }
+                  </button>
+
                 </div>
-              </label>
 
-            </div>
+              </form>
 
+            </section>
 
-            <label className="payments-field">
-              <span>Shënim</span>
-
-              <textarea
-                value={globalNote}
-                onChange={(event)=>
-                  setGlobalNote(
-                    event.target.value,
-                  )
-                }
-                rows={3}
-                maxLength={500}
-                placeholder="P.sh. pagesa e fundit të muajit..."
-              />
-
-              <small>
-                {globalNote.length}/500
-              </small>
-            </label>
+          )}
 
 
-            <button
-              type="submit"
-              className="payments-submit-button"
-              disabled={isSubmitting}
-            >
-              {
-                isSubmitting
-                  ? "Duke u regjistruar..."
-                  : selectedGlobalWorkIds.length > 0
-                    ? "Mbyll punët dhe regjistro pagesën"
-                    : "Regjistro pagesën e borxhit"
-              }
-            </button>
+          {activeView === "history" && (
 
-          </form>
+            <section className="claude-payment-history">
 
-        </section>
+              <header>
 
-
-        <section
-          id="payments-panel-history"
-          className="payments-history-card"
-          role="tabpanel"
-          aria-labelledby="payments-tab-history"
-          hidden={
-            activeView !== "history"
-          }
-        >
-
-          <div className="payments-history-header">
-
-            <div className="payments-section-title">
-
-              <span className="payments-section-icon is-history">
-                ▣
-              </span>
-
-              <div>
-                <h2>Historiku i pagesave</h2>
+                <h2>
+                  Historiku i pagesave
+                </h2>
 
                 <p>
                   {payments.length} pagesa të
-                  regjistruara
+                  regjistruara këtë muaj
                 </p>
-              </div>
 
-            </div>
-
-          </div>
+              </header>
 
 
-          <div className="payments-table-scroll">
+              <div>
 
-            <table className="payments-table">
+                {paginatedPayments.map((payment)=>(
 
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Mjeku</th>
-                  <th>Shuma</th>
-                  <th>Shënimi</th>
-                </tr>
-              </thead>
+                  <article key={payment.id}>
 
-              <tbody>
+                    <span className="claude-history-icon">
+                      €
+                    </span>
 
-                {payments.map((payment)=>(
-                  <tr key={payment.id}>
+                    <div>
+                      <strong>
+                        {payment.doctor_name}
+                      </strong>
 
-                    <td>
+                      <small>
+                        {
+                          payment.note
+                            ? payment.note
+                            : "Pa shënim"
+                        }
+                      </small>
+                    </div>
+
+                    <time>
                       {formatDate(
                         payment.payment_date,
                       )}
-                    </td>
+                    </time>
 
-                    <td>
-                      {payment.doctor_name}
-                    </td>
+                    <b>
+                      {formatMoney(
+                        payment.amount,
+                      )} €
+                    </b>
 
-                    <td>
-                      <strong className="payments-amount">
-                        {formatMoney(
-                          payment.amount,
-                        )} €
-                      </strong>
-                    </td>
+                  </article>
 
-                    <td>
-                      <span className="payments-note">
-                        {
-                          payment.note ??
-                          "Pa shënim"
-                        }
-                      </span>
-                    </td>
-
-                  </tr>
                 ))}
 
 
                 {!isLoading &&
                   payments.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="payments-empty"
-                      >
-                        Nuk ka pagesa të
-                        regjistruara.
-                      </td>
-                    </tr>
+
+                    <div className="claude-payment-empty">
+                      Nuk ka pagesa të
+                      regjistruara.
+                    </div>
+
                   )}
 
-              </tbody>
+              </div>
 
-            </table>
 
-          </div>
+              {payments.length >
+                HISTORY_PAGE_SIZE && (
+
+                <nav
+                  className="claude-history-pagination"
+                  aria-label="Faqet e historikut"
+                >
+
+                  <button
+                    type="button"
+                    className="claude-history-page-arrow"
+                    onClick={()=>
+                      changeHistoryPage(
+                        safeHistoryPage - 1,
+                      )
+                    }
+                    disabled={
+                      safeHistoryPage === 1
+                    }
+                    aria-label="Faqja e mëparshme"
+                  >
+                    ‹
+                  </button>
+
+
+                  <div className="claude-history-page-numbers">
+
+                    {Array.from(
+                      {
+                        length:
+                          historyTotalPages,
+                      },
+                      (_,index)=>index + 1,
+                    ).map((page)=>(
+
+                      <button
+                        type="button"
+                        key={page}
+                        className={
+                          page ===
+                          safeHistoryPage
+                            ? "is-active"
+                            : ""
+                        }
+                        onClick={()=>
+                          changeHistoryPage(
+                            page,
+                          )
+                        }
+                        aria-current={
+                          page ===
+                          safeHistoryPage
+                            ? "page"
+                            : undefined
+                        }
+                      >
+                        {page}
+                      </button>
+
+                    ))}
+
+                  </div>
+
+
+                  <button
+                    type="button"
+                    className="claude-history-page-arrow"
+                    onClick={()=>
+                      changeHistoryPage(
+                        safeHistoryPage + 1,
+                      )
+                    }
+                    disabled={
+                      safeHistoryPage ===
+                      historyTotalPages
+                    }
+                    aria-label="Faqja tjetër"
+                  >
+                    ›
+                  </button>
+
+                </nav>
+
+              )}
+
+
+              {payments.length > 0 && (
+
+                <p className="claude-history-page-status">
+                  Duke shfaqur{" "}
+                  {
+                    (
+                      safeHistoryPage - 1
+                    ) * HISTORY_PAGE_SIZE
+                    + 1
+                  }
+                  {"–"}
+                  {
+                    Math.min(
+                      safeHistoryPage *
+                        HISTORY_PAGE_SIZE,
+                      payments.length,
+                    )
+                  }
+                  {" nga "}
+                  {payments.length}
+                  {" pagesa"}
+                </p>
+
+              )}
+
+            </section>
+
+          )}
 
         </section>
 
 
         {selectedWork && (
+
           <div
-            className="payment-work-modal-backdrop"
+            className="claude-work-payment-backdrop"
             role="presentation"
             onMouseDown={(event)=>{
 
@@ -2335,7 +2347,7 @@ export default function Payments() {
           >
 
             <article
-              className="payment-work-modal"
+              className="claude-work-payment-card"
               role="dialog"
               aria-modal="true"
               aria-label="Pagesa e punës"
@@ -2345,18 +2357,20 @@ export default function Payments() {
 
                 <div>
                   <span>
+                    Regjistro pagesë
+                  </span>
+
+                  <h2>
                     Puna{" "}
                     {getWorkNumber(
                       selectedWork,
                     )}
-                  </span>
-
-                  <h2>
-                    {selectedWork.first_name}{" "}
-                    {selectedWork.last_name}
                   </h2>
 
                   <p>
+                    {selectedWork.first_name}{" "}
+                    {selectedWork.last_name}
+                    {" · "}
                     {selectedWork.doctor_name}
                   </p>
                 </div>
@@ -2372,268 +2386,53 @@ export default function Payments() {
               </header>
 
 
-              <div className="payment-work-modal-content">
+              <form
+                onSubmit={submitWorkPayment}
+              >
 
-                <section className="payment-work-details">
+                <div className="claude-work-current-balance">
 
-                  <div className="payment-work-facts">
+                  <span>Mbetja aktuale</span>
 
-                    <div>
-                      <span>Data</span>
-                      <strong>
-                        {formatDate(
-                          selectedWork.work_date,
-                        )}
-                      </strong>
-                    </div>
+                  <strong>
+                    {formatMoney(
+                      selectedWork
+                        .remaining_amount,
+                    )} €
+                  </strong>
 
-                    <div>
-                      <span>Materiali</span>
-                      <strong>
-                        {
-                          selectedWork
-                            .material_name ??
-                          "-"
-                        }
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>Ngjyra</span>
-                      <strong>
-                        {
-                          selectedWork
-                            .color_name ??
-                          "-"
-                        }
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>Lloji</span>
-                      <strong>
-                        {
-                          selectedWork.is_repeat
-                            ? "Përsëritje"
-                            : "Punë e re"
-                        }
-                      </strong>
-                    </div>
-
-                  </div>
+                </div>
 
 
-                  <div className="payment-work-description">
+                <label className="claude-payment-field">
+                  <span>Shuma e pagesës</span>
 
-                    <h3>Përshkrimi</h3>
-
-                    <p>
-                      {
-                        selectedWork.description ??
-                        "Pa përshkrim"
-                      }
-                    </p>
-
-                  </div>
-
-
-                  <div className="payment-work-teeth">
-
-                    <h3>Skema e dhëmbëve</h3>
-
-                    <ToothMap
-                      teeth={
-                        selectedWork.teeth
-                      }
-                    />
-
-                    <div className="payment-tooth-legend">
-                      <span>
-                        <i className="is-selected" />
-                        Dhëmb
-                      </span>
-
-                      <span>
-                        <i className="is-antar" />
-                        Antar
-                      </span>
-                    </div>
-
-                  </div>
-
-                </section>
-
-
-                <form
-                  className="payment-work-form"
-                  onSubmit={submitWorkPayment}
-                >
-
-                  <h3>Regjistro pagesën</h3>
-
-
-                  <div className="payment-work-finance">
-
-                    <div>
-                      <span>Çmimi fillestar</span>
-
-                      <strong>
-                        {formatMoney(
-                          selectedWork
-                            .original_total_amount,
-                        )} €
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>Çmimi final aktual</span>
-
-                      <strong>
-                        {formatMoney(
-                          selectedWork
-                            .total_amount,
-                        )} €
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>Paguar</span>
-
-                      <strong className="is-paid">
-                        {formatMoney(
-                          selectedWork
-                            .paid_amount,
-                        )} €
-                      </strong>
-                    </div>
-
-                    <div className="is-balance">
-                      <span>Mbetja</span>
-
-                      <strong>
-                        {formatMoney(
-                          selectedWork
-                            .remaining_amount,
-                        )} €
-                      </strong>
-                    </div>
-
-                  </div>
-
-
-                  <label className="payment-discount-toggle">
+                  <div className="claude-money-input">
+                    <span>€</span>
 
                     <input
-                      type="checkbox"
-                      checked={workHasFinalPriceChange}
-                      onChange={(event)=>{
-
-                        const checked =
-                          event.target.checked;
-
-                        setWorkHasFinalPriceChange(
-                          checked,
-                        );
-
-                        setWorkFinalAmount(
-                          checked
-                            ? Number(
-                                selectedWork
-                                  .total_amount,
-                              ).toFixed(2)
-                            : "",
-                        );
-
-                      }}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={workAmount}
+                      onChange={(event)=>
+                        setWorkAmount(
+                          event.target.value,
+                        )
+                      }
+                      placeholder={
+                        selectedWork
+                          .remaining_amount
+                      }
                     />
-
-                    <span />
-
-                    <div>
-                      <strong>
-                        Ndrysho çmimin final
-                      </strong>
-
-                      <small>
-                        Mund të vendosni një
-                        çmim final më të ulët
-                        ose më të lartë.
-                      </small>
-                    </div>
-
-                  </label>
+                  </div>
+                </label>
 
 
-                  {workHasFinalPriceChange && (
-                    <label className="payments-field">
-                      <span>
-                        Çmimi final i faturuar
-                      </span>
-
-                      <div className="payments-amount-input">
-                        <span>€</span>
-
-                        <input
-                          type="number"
-                          min={
-                            Number(
-                              selectedWork
-                                .paid_amount,
-                            )
-                          }
-                          step="0.01"
-                          value={workFinalAmount}
-                          onChange={(event)=>
-                            setWorkFinalAmount(
-                              event.target.value,
-                            )
-                          }
-                          placeholder={
-                            selectedWork
-                              .total_amount
-                          }
-                        />
-                      </div>
-
-                      <small>
-                        Minimumi i lejuar:{" "}
-                        {formatMoney(
-                          selectedWork
-                            .paid_amount,
-                        )} €
-                      </small>
-                    </label>
-                  )}
-
-
-                  <label className="payments-field">
-                    <span>Shuma e marrë</span>
-
-                    <div className="payments-amount-input">
-                      <span>€</span>
-
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={workAmount}
-                        onChange={(event)=>
-                          setWorkAmount(
-                            event.target.value,
-                          )
-                        }
-                        placeholder={
-                          selectedWork
-                            .remaining_amount
-                        }
-                      />
-                    </div>
-                  </label>
-
+                <div className="claude-work-quick-actions">
 
                   <button
                     type="button"
-                    className="payment-fill-remaining"
                     onClick={()=>
                       setWorkAmount(
                         Number(
@@ -2643,51 +2442,185 @@ export default function Payments() {
                       )
                     }
                   >
-                    Përdor shumën e plotë të
-                    mbetur
+                    Pagesë e plotë
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={()=>
+                      setWorkAmount(
+                        (
+                          Number(
+                            selectedWork
+                              .remaining_amount,
+                          ) / 2
+                        ).toFixed(2),
+                      )
+                    }
+                  >
+                    Gjysma
+                  </button>
 
-                  <label className="payments-field">
-                    <span>Data e pagesës</span>
+                  <button
+                    type="button"
+                    onClick={()=>
+                      setWorkAmount("")
+                    }
+                  >
+                    Shumë tjetër
+                  </button>
 
-                    <input
-                      type="date"
-                      value={workPaymentDate}
-                      onChange={(event)=>
-                        setWorkPaymentDate(
-                          event.target.value,
-                        )
-                      }
-                      required
-                    />
+                </div>
+
+
+                <label className="claude-simple-checkbox">
+
+                  <input
+                    type="checkbox"
+                    checked={
+                      workHasFinalPriceChange
+                    }
+                    onChange={(event)=>{
+
+                      const checked =
+                        event.target.checked;
+
+                      setWorkHasFinalPriceChange(
+                        checked,
+                      );
+
+                      setWorkFinalAmount(
+                        checked
+                          ? Number(
+                              selectedWork
+                                .total_amount,
+                            ).toFixed(2)
+                          : "",
+                      );
+
+                    }}
+                  />
+
+                  <span>
+                    Ndrysho çmimin final të
+                    faturuar
+                  </span>
+
+                </label>
+
+
+                {workHasFinalPriceChange && (
+
+                  <label className="claude-payment-field">
+                    <span>
+                      Çmimi final i faturuar
+                    </span>
+
+                    <div className="claude-money-input">
+                      <span>€</span>
+
+                      <input
+                        type="number"
+                        min={
+                          Number(
+                            selectedWork
+                              .paid_amount,
+                          )
+                        }
+                        step="0.01"
+                        value={workFinalAmount}
+                        onChange={(event)=>
+                          setWorkFinalAmount(
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
                   </label>
 
+                )}
 
-                  <label className="payments-field">
-                    <span>Shënim</span>
 
-                    <textarea
-                      value={workNote}
-                      onChange={(event)=>
-                        setWorkNote(
-                          event.target.value,
-                        )
-                      }
-                      maxLength={500}
-                      rows={3}
-                      placeholder="P.sh. kësti i parë..."
-                    />
+                <label className="claude-payment-field">
+                  <span>Data e pagesës</span>
 
-                    <small>
-                      {workNote.length}/500
-                    </small>
-                  </label>
+                  <input
+                    type="date"
+                    value={workPaymentDate}
+                    onChange={(event)=>
+                      setWorkPaymentDate(
+                        event.target.value,
+                      )
+                    }
+                    required
+                  />
+                </label>
+
+
+                <label className="claude-payment-field">
+                  <span>
+                    Shënim (opsionale)
+                  </span>
+
+                  <input
+                    type="text"
+                    value={workNote}
+                    onChange={(event)=>
+                      setWorkNote(
+                        event.target.value,
+                      )
+                    }
+                    maxLength={500}
+                    placeholder="P.sh. pagesë në dorë..."
+                  />
+                </label>
+
+
+                <div className="claude-work-payment-bottom">
+
+                  <dl>
+
+                    <div>
+                      <dt>Para pagesës</dt>
+
+                      <dd>
+                        {formatMoney(
+                          selectedWorkFinalAmount
+                          - Number(
+                              selectedWork
+                                .paid_amount,
+                            ),
+                        )} €
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Pas pagesës</dt>
+
+                      <dd
+                        className={
+                          selectedWorkRemainingAfterPayment
+                            > 0
+                              ? "is-balance"
+                              : "is-paid"
+                        }
+                      >
+                        {
+                          selectedWorkRemainingAfterPayment
+                            > 0
+                              ? `${formatMoney(
+                                  selectedWorkRemainingAfterPayment,
+                                )} €`
+                              : "Paguar plotësisht"
+                        }
+                      </dd>
+                    </div>
+
+                  </dl>
 
 
                   <button
                     type="submit"
-                    className="payments-submit-button"
                     disabled={isSubmitting}
                   >
                     {
@@ -2697,13 +2630,14 @@ export default function Payments() {
                     }
                   </button>
 
-                </form>
+                </div>
 
-              </div>
+              </form>
 
             </article>
 
           </div>
+
         )}
 
       </main>

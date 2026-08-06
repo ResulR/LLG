@@ -71,6 +71,13 @@ const upperRight = [21,22,23,24,25,26,27,28];
 const lowerLeft = [48,47,46,45,44,43,42,41];
 const lowerRight = [31,32,33,34,35,36,37,38];
 
+const allTeeth = [
+  ...upperLeft,
+  ...upperRight,
+  ...lowerLeft,
+  ...lowerRight,
+];
+
 
 function getWorkNumber(work:Work){
 
@@ -93,6 +100,29 @@ function formatDate(value:string){
       year:"numeric",
     }
   );
+
+}
+
+
+function getTodayInputDate(){
+
+  const today = new Date();
+
+  const year =
+    today.getFullYear();
+
+  const month =
+    String(
+      today.getMonth() + 1,
+    ).padStart(2,"0");
+
+  const day =
+    String(
+      today.getDate(),
+    ).padStart(2,"0");
+
+
+  return `${year}-${month}-${day}`;
 
 }
 
@@ -182,7 +212,12 @@ export default function Works(){
 
   const [isLoading,setIsLoading]=useState(true);
 
+  const [createOpen,setCreateOpen]=
+    useState(false);
+
   const [doctorId,setDoctorId]=useState("");
+  const [workDate,setWorkDate]=
+    useState(getTodayInputDate);
   const [firstName,setFirstName]=useState("");
   const [lastName,setLastName]=useState("");
   const [materialId,setMaterialId]=useState("");
@@ -239,8 +274,10 @@ export default function Works(){
 
 
   const createWorkIsDirty =
+    createOpen &&
     Boolean(
       doctorId ||
+      workDate !== getTodayInputDate() ||
       firstName.trim() ||
       lastName.trim() ||
       materialId ||
@@ -467,7 +504,11 @@ export default function Works(){
 
   useEffect(()=>{
 
-    if(!selectedWork && !editingWork){
+    if(
+      !selectedWork &&
+      !editingWork &&
+      !createOpen
+    ){
       return;
     }
 
@@ -482,6 +523,31 @@ export default function Works(){
 
       if(event.key !== "Escape"){
         return;
+      }
+
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+
+      if(createOpen){
+
+        if(createWorkIsDirty){
+
+          setFormMessage(
+            "Nuk mund ta mbyllni me Esc sepse formulari ka të dhëna të paruajtura.",
+          );
+
+          setFormMessageType("error");
+
+          return;
+
+        }
+
+
+        setCreateOpen(false);
+        return;
+
       }
 
 
@@ -531,8 +597,53 @@ export default function Works(){
   },[
     selectedWork,
     editingWork,
+    createOpen,
+    createWorkIsDirty,
     editWorkIsDirty,
   ]);
+
+
+  useEffect(()=>{
+
+    function openCreateWork(){
+
+      sessionStorage.removeItem(
+        "dentaltrack:open-create-work",
+      );
+
+      setFormMessage("");
+      setFormMessageType("");
+      setWorkDate(getTodayInputDate());
+      setCreateOpen(true);
+
+    }
+
+
+    if(
+      sessionStorage.getItem(
+        "dentaltrack:open-create-work",
+      ) === "1"
+    ) {
+      openCreateWork();
+    }
+
+
+    window.addEventListener(
+      "dentaltrack:open-create-work",
+      openCreateWork,
+    );
+
+
+    return ()=>{
+
+      window.removeEventListener(
+        "dentaltrack:open-create-work",
+        openCreateWork,
+      );
+
+    };
+
+  },[]);
 
 
   const selectedAntarCount = useMemo(
@@ -596,11 +707,75 @@ export default function Works(){
   },[works,search,statusFilter]);
 
 
+  async function closeCreateWork(){
+
+    if(isSubmitting){
+      return;
+    }
+
+
+    if(createWorkIsDirty){
+
+      const confirmed =
+        await confirmAction({
+          title:"Mbyll formularin",
+
+          message:
+            "Ka të dhëna të paruajtura. A dëshironi ta mbyllni formularin?",
+
+          confirmLabel:"Mbyll",
+          tone:"warning",
+        });
+
+
+      if(!confirmed){
+        return;
+      }
+
+    }
+
+
+    setCreateOpen(false);
+    setFormMessage("");
+    setFormMessageType("");
+
+  }
+
+
   function toggleTooth(toothNumber:number){
 
     setSelectedTeeth((current)=>
       cycleTooth(current,toothNumber)
     );
+
+  }
+
+
+  function selectAllTeeth(){
+
+    setSelectedTeeth((current)=>{
+
+      const currentByNumber =
+        new Map(
+          current.map(
+            (tooth)=>[
+              tooth.number,
+              tooth,
+            ],
+          ),
+        );
+
+
+      return allTeeth.map(
+        (toothNumber)=>(
+          currentByNumber.get(toothNumber) ?? {
+            number:toothNumber,
+            is_antar:false,
+          }
+        ),
+      );
+
+    });
 
   }
 
@@ -647,15 +822,6 @@ export default function Works(){
         }
       >
         <span>{toothNumber}</span>
-
-        {tooth?.is_antar && (
-          <span
-            className="works-tooth-x"
-            aria-hidden="true"
-          >
-            ×
-          </span>
-        )}
       </button>
     );
 
@@ -716,6 +882,21 @@ export default function Works(){
       Number(price);
 
 
+    if(
+      !/^\d{4}-\d{2}-\d{2}$/.test(
+        workDate,
+      )
+    ){
+
+      setFormMessage(
+        "Zgjidhni një datë të vlefshme për punën."
+      );
+      setFormMessageType("error");
+      return;
+
+    }
+
+
     if(!doctorId){
 
       setFormMessage("Zgjidhni mjekun.");
@@ -760,13 +941,19 @@ export default function Works(){
 
     if(
       !Number.isFinite(numericPrice) ||
-      numericPrice <= 0
+      numericPrice < 0 ||
+      (
+        !isRepeat &&
+        numericPrice === 0
+      )
     ){
 
       setFormMessage(
-        pricingMode === "fixed_total"
-          ? "Çmimi total duhet të jetë më i madh se 0."
-          : "Çmimi për dhëmb duhet të jetë më i madh se 0."
+        isRepeat
+          ? "Çmimi nuk mund të jetë negativ."
+          : pricingMode === "fixed_total"
+            ? "Çmimi total duhet të jetë më i madh se 0."
+            : "Çmimi për dhëmb duhet të jetë më i madh se 0."
       );
       setFormMessageType("error");
       return;
@@ -785,6 +972,7 @@ export default function Works(){
           method:"POST",
           body:JSON.stringify({
             doctor_id:Number(doctorId),
+            work_date:workDate,
             patient_first_name:cleanFirstName,
             patient_last_name:cleanLastName,
             material_id:materialId
@@ -822,6 +1010,11 @@ export default function Works(){
               "Çmimi nuk është valid.";
           }
 
+          if(data?.error === "invalid_work_date"){
+            message =
+              "Data e punës nuk është valide.";
+          }
+
           if(data?.error === "description_too_long"){
             message =
               "Përshkrimi nuk mund të ketë më shumë se 2000 karaktere.";
@@ -840,6 +1033,7 @@ export default function Works(){
 
 
       setDoctorId("");
+      setWorkDate(getTodayInputDate());
       setFirstName("");
       setLastName("");
       setMaterialId("");
@@ -854,6 +1048,13 @@ export default function Works(){
         "Puna u shtua me sukses."
       );
       setFormMessageType("success");
+
+      setCreateOpen(false);
+
+      setHistoryMessage(
+        "Puna u shtua me sukses."
+      );
+      setHistoryMessageType("success");
 
       await loadData();
 
@@ -1111,11 +1312,17 @@ export default function Works(){
 
     if(
       !Number.isFinite(numericPrice) ||
-      numericPrice <= 0
+      numericPrice < 0 ||
+      (
+        !editIsRepeat &&
+        numericPrice === 0
+      )
     ){
 
       setEditMessage(
-        "Çmimi nuk është valid."
+        editIsRepeat
+          ? "Çmimi nuk mund të jetë negativ."
+          : "Çmimi duhet të jetë më i madh se 0."
       );
       return;
 
@@ -1230,7 +1437,24 @@ export default function Works(){
         </header>
 
 
-        <section className="works-create-card">
+        {createOpen && (
+
+          <div
+            className="works-create-backdrop"
+            role="presentation"
+            onMouseDown={(event)=>{
+
+              if(
+                event.target ===
+                event.currentTarget
+              ){
+                void closeCreateWork();
+              }
+
+            }}
+          >
+
+        <section className="works-create-card works-create-panel">
 
           <div className="works-section-title">
 
@@ -1247,6 +1471,19 @@ export default function Works(){
             </div>
 
           </div>
+
+
+          <button
+            type="button"
+            className="works-create-close"
+            onClick={()=>
+              void closeCreateWork()
+            }
+            disabled={isSubmitting}
+            aria-label="Mbyll formularin"
+          >
+            ×
+          </button>
 
 
           <form
@@ -1282,6 +1519,24 @@ export default function Works(){
                     </option>
                   ))}
                 </select>
+
+              </label>
+
+
+              <label className="works-field">
+
+                <span>Data e punës</span>
+
+                <input
+                  type="date"
+                  value={workDate}
+                  onChange={(event)=>
+                    setWorkDate(
+                      event.target.value
+                    )
+                  }
+                  required
+                />
 
               </label>
 
@@ -1489,7 +1744,7 @@ export default function Works(){
 
                   <input
                     type="number"
-                    min="0.01"
+                    min={isRepeat ? "0" : "0.01"}
                     step="0.01"
                     value={price}
                     onChange={(event)=>
@@ -1519,9 +1774,25 @@ export default function Works(){
                   <h3>Zgjidh dhëmbët</h3>
                 </div>
 
-                <span className="works-selection-count">
-                  {selectedTeeth.length} të zgjedhur
-                </span>
+                <div className="works-odontogram-actions">
+
+                  <button
+                    type="button"
+                    className="works-select-all-teeth"
+                    onClick={selectAllTeeth}
+                    disabled={
+                      selectedTeeth.length ===
+                      allTeeth.length
+                    }
+                  >
+                    Zgjidh të gjithë
+                  </button>
+
+                  <span className="works-selection-count">
+                    {selectedTeeth.length} të zgjedhur
+                  </span>
+
+                </div>
 
               </div>
 
@@ -1583,9 +1854,10 @@ export default function Works(){
                 </span>
 
                 <span className="works-legend-item">
-                  <span className="works-legend-box is-antar">
-                    ×
-                  </span>
+                  <span
+                    className="works-legend-box is-antar"
+                    aria-hidden="true"
+                  />
                   Antar
                 </span>
 
@@ -1632,9 +1904,10 @@ export default function Works(){
               <div className="works-summary-row">
 
                 <div>
-                  <span className="works-summary-dot is-red">
-                    ×
-                  </span>
+                  <span
+                    className="works-summary-dot is-red"
+                    aria-hidden="true"
+                  />
 
                   <span>Dhëmbë Antar</span>
                 </div>
@@ -1716,6 +1989,11 @@ export default function Works(){
           </form>
 
         </section>
+
+
+          </div>
+
+        )}
 
 
         <section className="works-history-card">
@@ -1813,222 +2091,246 @@ export default function Works(){
           </div>
 
 
-          <div className="works-table-scroll">
+          <div className="works-modern-list">
 
-            <table className="works-table">
+            {filteredWorks.map((work)=>(
 
-              <thead>
+              <article
+                key={work.id}
+                className={
+                  work.status === "cancelled"
+                    ? "works-modern-row is-cancelled"
+                    : "works-modern-row"
+                }
+              >
 
-                <tr>
-                  <th>Nr</th>
-                  <th>Pacienti</th>
-                  <th>Mjeku</th>
-                  <th>Material</th>
-                  <th>Ngjyra</th>
-                  <th>Përshkrimi</th>
-                  <th>Lloji</th>
-                  <th>Dhëmbët</th>
-                  <th>Statusi</th>
-                  <th>Total</th>
-                  <th>Veprime</th>
-                </tr>
+                <button
+                  type="button"
+                  className="works-modern-main"
+                  onClick={()=>
+                    setSelectedWork(work)
+                  }
+                >
 
-              </thead>
+                  <span className="works-modern-number">
+
+                    <strong>
+                      {getWorkNumber(work)}
+                    </strong>
+
+                    <small>
+                      {formatDate(work.work_date)}
+                    </small>
+
+                  </span>
 
 
-              <tbody>
+                  <span className="works-modern-patient">
 
-                {filteredWorks.map((work)=>(
+                    <strong>
+                      {work.first_name}{" "}
+                      {work.last_name}
+                    </strong>
 
-                  <tr key={work.id}>
+                    <small>
+                      {work.doctor_name}
+                    </small>
 
-                    <td>
-                      <strong>
-                        {getWorkNumber(work)}
-                      </strong>
-                    </td>
-
-                    <td>
-                      <div className="works-patient-cell">
-                        <strong>
-                          {work.first_name}{" "}
-                          {work.last_name}
-                        </strong>
-
-                        <span>
-                          {formatDate(work.work_date)}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td>{work.doctor_name}</td>
-
-                    <td>
-                      {work.material_name ?? "-"}
-                    </td>
-
-                    <td>
-                      {work.color_name ?? "-"}
-                    </td>
-
-                    <td>
-                      <span
-                        className="works-table-description"
-                        title={
-                          work.description ??
-                          "Pa përshkrim"
-                        }
-                      >
-                        {
-                          work.description ??
-                          "Pa përshkrim"
-                        }
-                      </span>
-                    </td>
-
-                    <td>
-                      {
-                        work.is_repeat ? (
-                          <span className="works-repeat-badge">
-                            Përsëritje
-                          </span>
-                        ) : (
-                          <span className="works-standard-badge">
-                            E re
-                          </span>
-                        )
+                    <small
+                      className="works-modern-description"
+                      title={
+                        work.description ??
+                        "Pa përshkrim"
                       }
-                    </td>
-
-                    <td>
-                      <div className="works-table-teeth">
-
-                        {work.teeth
-                          .slice(0,6)
-                          .map((tooth)=>(
-                            <span
-                              key={tooth.number}
-                              className={
-                                tooth.is_antar
-                                  ? "is-antar"
-                                  : ""
-                              }
-                            >
-                              {tooth.number}
-                              {
-                                tooth.is_antar
-                                  ? "×"
-                                  : ""
-                              }
-                            </span>
-                          ))}
-
-                        {work.teeth.length > 6 && (
-                          <strong>
-                            +{work.teeth.length - 6}
-                          </strong>
-                        )}
-
-                      </div>
-                    </td>
-
-                    <td>
-                      <span
-                        className={
-                          work.status === "cancelled"
-                            ? "works-status is-cancelled"
-                            : "works-status is-active"
-                        }
-                      >
-                        {
-                          work.status === "cancelled"
-                            ? "Anuluar"
-                            : "Aktive"
-                        }
-                      </span>
-                    </td>
-
-                    <td>
-                      <strong>
-                        {
-                          Number(
-                            work.total_amount
-                          ).toFixed(2)
-                        } €
-                      </strong>
-                    </td>
-
-                    <td>
-                      <div className="works-actions">
-
-                        <button
-                          type="button"
-                          className="works-view-button"
-                          onClick={()=>
-                            setSelectedWork(work)
-                          }
-                        >
-                          ◉ Shiko
-                        </button>
-
-                        <button
-                          type="button"
-                          className={
-                            work.status === "cancelled"
-                              ? "works-status-button is-reactivate"
-                              : "works-status-button is-cancel"
-                          }
-                          disabled={
-                            actionWorkId === work.id
-                          }
-                          onClick={()=>
-                            updateWorkStatus(work)
-                          }
-                        >
-                          {
-                            actionWorkId === work.id
-                              ? "..."
-                              : work.status === "cancelled"
-                                ? "Riaktivizo"
-                                : "Anulo"
-                          }
-                        </button>
-
-                      </div>
-                    </td>
-
-                  </tr>
-
-                ))}
-
-
-                {!isLoading &&
-                  filteredWorks.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={11}
-                        className="works-empty"
-                      >
-                        Nuk u gjet asnjë punë.
-                      </td>
-                    </tr>
-                  )}
-
-
-                {isLoading && (
-                  <tr>
-                    <td
-                      colSpan={11}
-                      className="works-empty"
                     >
-                      Duke ngarkuar...
-                    </td>
-                  </tr>
-                )}
+                      {
+                        work.description?.trim()
+                          ? work.description
+                          : "Pa përshkrim"
+                      }
+                    </small>
 
-              </tbody>
+                  </span>
 
-            </table>
+
+                  <span className="works-modern-reference">
+
+                    <small>Materiali</small>
+
+                    <strong>
+                      {work.material_name ?? "-"}
+                    </strong>
+
+                    <span>
+                      {work.color_name ?? "-"}
+                    </span>
+
+                  </span>
+
+
+                  <span className="works-modern-teeth">
+
+                    <small>Dhëmbët</small>
+
+                    <span>
+
+                      {work.teeth
+                        .slice(0,5)
+                        .map((tooth)=>(
+
+                          <i
+                            key={tooth.number}
+                            className={
+                              tooth.is_antar
+                                ? "is-antar"
+                                : ""
+                            }
+                          >
+                            {tooth.number}
+                          </i>
+
+                        ))}
+
+                      {work.teeth.length > 5 && (
+                        <b>
+                          +{work.teeth.length - 5}
+                        </b>
+                      )}
+
+                    </span>
+
+                  </span>
+
+
+                  <span className="works-modern-type">
+
+                    <small>Lloji</small>
+
+                    <strong
+                      className={
+                        work.is_repeat
+                          ? "is-repeat"
+                          : "is-new"
+                      }
+                    >
+                      {
+                        work.is_repeat
+                          ? "Përsëritje"
+                          : "E re"
+                      }
+                    </strong>
+
+                  </span>
+
+
+                  <span className="works-modern-total">
+
+                    <small>Totali</small>
+
+                    <strong>
+                      {
+                        Number(
+                          work.total_amount,
+                        ).toFixed(2)
+                      } €
+                    </strong>
+
+                  </span>
+
+
+                  <span
+                    className={
+                      work.status === "cancelled"
+                        ? "works-modern-status is-cancelled"
+                        : "works-modern-status is-active"
+                    }
+                  >
+                    {
+                      work.status === "cancelled"
+                        ? "Anuluar"
+                        : "Aktive"
+                    }
+                  </span>
+
+
+                  <span
+                    className="works-modern-arrow"
+                    aria-hidden="true"
+                  >
+                    ›
+                  </span>
+
+                </button>
+
+
+                <div className="works-modern-actions">
+
+                  <button
+                    type="button"
+                    className="works-view-button"
+                    onClick={()=>
+                      setSelectedWork(work)
+                    }
+                  >
+                    Shiko
+                  </button>
+
+
+                  <button
+                    type="button"
+                    className={
+                      work.status === "cancelled"
+                        ? "works-status-button is-reactivate"
+                        : "works-status-button is-cancel"
+                    }
+                    disabled={
+                      actionWorkId === work.id
+                    }
+                    onClick={()=>
+                      updateWorkStatus(work)
+                    }
+                  >
+                    {
+                      actionWorkId === work.id
+                        ? "..."
+                        : work.status === "cancelled"
+                          ? "Riaktivizo"
+                          : "Anulo"
+                    }
+                  </button>
+
+                </div>
+
+              </article>
+
+            ))}
+
+
+            {!isLoading &&
+              filteredWorks.length === 0 && (
+
+                <div className="works-modern-empty">
+
+                  <strong>
+                    Nuk u gjet asnjë punë
+                  </strong>
+
+                  <span>
+                    Ndryshoni kërkimin ose filtrin.
+                  </span>
+
+                </div>
+
+              )}
+
+
+            {isLoading && (
+
+              <div className="works-modern-empty">
+                Duke ngarkuar...
+              </div>
+
+            )}
 
           </div>
 
@@ -2232,10 +2534,6 @@ export default function Works(){
                         }
                       >
                         {tooth.number}
-
-                        {tooth.is_antar && (
-                          <strong>×</strong>
-                        )}
                       </span>
                     )
                   )}

@@ -5,7 +5,24 @@ import {
 } from "react";
 
 import {
-  Link,
+  ArrowLeft,
+  ArrowRight,
+  Banknote,
+  BriefcaseBusiness,
+  CalendarDays,
+  CheckCircle2,
+  CircleDollarSign,
+  FileText,
+  Layers3,
+  Phone,
+  Plus,
+  Search,
+  Stethoscope,
+  UserRound,
+  X,
+} from "lucide-react";
+
+import {
   useNavigate,
   useParams,
 } from "react-router-dom";
@@ -84,7 +101,14 @@ type DoctorDetailsData = {
 };
 
 
-function formatMoney(value:string|number) {
+type WorkspaceTab =
+  "works" |
+  "payments";
+
+
+function formatMoney(
+  value:string|number,
+) {
 
   return new Intl.NumberFormat(
     "de-DE",
@@ -92,14 +116,32 @@ function formatMoney(value:string|number) {
       minimumFractionDigits:2,
       maximumFractionDigits:2,
     },
-  ).format(Number(value || 0));
+  ).format(
+    Number(value || 0),
+  );
 
 }
 
 
-function formatDate(value:string) {
+function formatDate(
+  value:string,
+) {
 
-  return new Date(value).toLocaleDateString(
+  const normalizedValue =
+    /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T12:00:00`
+      : value;
+
+  const date =
+    new Date(normalizedValue);
+
+
+  if(Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+
+  return date.toLocaleDateString(
     "sq-AL",
     {
       day:"2-digit",
@@ -111,13 +153,48 @@ function formatDate(value:string) {
 }
 
 
-function getWorkNumber(work:Work) {
+function getWorkNumber(
+  work:Work,
+) {
 
   return [
     work.year,
     String(work.month).padStart(2,"0"),
     String(work.monthly_number).padStart(3,"0"),
   ].join("-");
+
+}
+
+
+function getInitials(
+  name:string,
+) {
+
+  const parts =
+    name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+
+  if(parts.length === 0) {
+    return "DR";
+  }
+
+
+  if(parts.length === 1) {
+
+    return parts[0]
+      .slice(0,2)
+      .toUpperCase();
+
+  }
+
+
+  return (
+    parts[0][0] +
+    parts[parts.length - 1][0]
+  ).toUpperCase();
 
 }
 
@@ -138,10 +215,34 @@ function getPaymentStatusLabel(
       return "E papaguar";
 
     case "closed_global":
-      return "E mbyllur globalisht";
+      return "Mbyllur globalisht";
 
     default:
       return "Anuluar";
+
+  }
+
+}
+
+
+function getPaymentStatusClass(
+  status:Work["payment_status"],
+) {
+
+  switch(status) {
+
+    case "paid":
+    case "closed_global":
+      return "is-paid";
+
+    case "partial":
+      return "is-partial";
+
+    case "unpaid":
+      return "is-unpaid";
+
+    default:
+      return "is-cancelled";
 
   }
 
@@ -152,28 +253,64 @@ export default function DoctorDetails() {
 
   const {
     selectedMonth,
-  } = useMonth();
+  } =
+    useMonth();
 
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const {
+    id,
+  } =
+    useParams();
 
-  const [data,setData] =
-    useState<DoctorDetailsData|null>(null);
+  const navigate =
+    useNavigate();
 
-  const [isLoading,setIsLoading] =
+  const [
+    data,
+    setData,
+  ] =
+    useState<DoctorDetailsData|null>(
+      null,
+    );
+
+  const [
+    isLoading,
+    setIsLoading,
+  ] =
     useState(true);
 
-  const [error,setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState("");
 
-  const [search,setSearch] =
+  const [
+    search,
+    setSearch,
+  ] =
     useState("");
 
-  const [filter,setFilter] =
+  const [
+    filter,
+    setFilter,
+  ] =
     useState("all");
 
-  const [selectedWork,setSelectedWork] =
-    useState<Work|null>(null);
+  const [
+    selectedWork,
+    setSelectedWork,
+  ] =
+    useState<Work|null>(
+      null,
+    );
+
+  const [
+    activeTab,
+    setActiveTab,
+  ] =
+    useState<WorkspaceTab>(
+      "works",
+    );
 
 
   async function loadDetails() {
@@ -201,7 +338,9 @@ export default function DoctorDetails() {
       }
 
 
-      setData(await response.json());
+      setData(
+        await response.json(),
+      );
 
 
     } catch(error) {
@@ -222,163 +361,275 @@ export default function DoctorDetails() {
   }
 
 
-  useEffect(()=>{
+  useEffect(
+    ()=>{
 
-    loadDetails();
+      void loadDetails();
 
-  },[
-    id,
-    selectedMonth,
-  ]);
-
-
-  useEffect(()=>{
-
-    if(!selectedWork) {
-      return;
-    }
+    },
+    [
+      id,
+      selectedMonth,
+    ],
+  );
 
 
-    const previousOverflow =
-      document.body.style.overflow;
+  useEffect(
+    ()=>{
 
-    document.body.style.overflow =
-      "hidden";
-
-
-    function handleEscape(
-      event:KeyboardEvent,
-    ) {
-
-      if(event.key === "Escape") {
-        setSelectedWork(null);
+      if(!selectedWork) {
+        return;
       }
 
-    }
 
-
-    window.addEventListener(
-      "keydown",
-      handleEscape,
-    );
-
-
-    return ()=>{
+      const previousOverflow =
+        document.body.style.overflow;
 
       document.body.style.overflow =
-        previousOverflow;
+        "hidden";
 
-      window.removeEventListener(
+
+      function handleEscape(
+        event:KeyboardEvent,
+      ) {
+
+        if(event.key === "Escape") {
+          setSelectedWork(null);
+        }
+
+      }
+
+
+      window.addEventListener(
         "keydown",
         handleEscape,
       );
 
-    };
 
-  },[selectedWork]);
+      return ()=>{
 
+        document.body.style.overflow =
+          previousOverflow;
 
-  const filteredWorks = useMemo(()=>{
+        window.removeEventListener(
+          "keydown",
+          handleEscape,
+        );
 
-    if(!data) {
-      return [];
-    }
+      };
 
-
-    const normalizedSearch =
-      search.trim().toLowerCase();
-
-
-    return data.works.filter((work)=>{
-
-      const matchesSearch = [
-        getWorkNumber(work),
-        work.first_name,
-        work.last_name,
-        work.material_name ?? "",
-        work.color_name ?? "",
-        work.description ?? "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedSearch);
+    },
+    [
+      selectedWork,
+    ],
+  );
 
 
-      let matchesFilter = true;
+  const filteredWorks =
+    useMemo(
+      ()=>{
+
+        if(!data) {
+          return [];
+        }
 
 
-      if(filter === "unpaid") {
-
-        matchesFilter =
-          work.status === "active" &&
-          Number(work.remaining_amount) > 0;
-
-      }
+        const normalizedSearch =
+          search
+            .trim()
+            .toLowerCase();
 
 
-      if(filter === "paid") {
+        return data.works.filter(
+          (work)=>{
 
-        matchesFilter =
-          work.payment_status === "paid" ||
-          work.payment_status ===
-            "closed_global";
-
-      }
-
-
-      if(filter === "active") {
-
-        matchesFilter =
-          work.status === "active";
-
-      }
-
-
-      if(filter === "cancelled") {
-
-        matchesFilter =
-          work.status === "cancelled";
-
-      }
+            const matchesSearch = [
+              getWorkNumber(work),
+              work.first_name,
+              work.last_name,
+              work.material_name ?? "",
+              work.color_name ?? "",
+              work.description ?? "",
+            ]
+              .join(" ")
+              .toLowerCase()
+              .includes(
+                normalizedSearch,
+              );
 
 
-      return matchesSearch && matchesFilter;
+            let matchesFilter =
+              true;
 
-    });
 
-  },[
-    data,
-    search,
-    filter,
-  ]);
+            if(filter === "unpaid") {
+
+              matchesFilter =
+                work.status === "active" &&
+                Number(
+                  work.remaining_amount,
+                ) > 0;
+
+            }
+
+
+            if(filter === "paid") {
+
+              matchesFilter =
+                work.payment_status === "paid" ||
+                work.payment_status ===
+                  "closed_global";
+
+            }
+
+
+            if(filter === "active") {
+
+              matchesFilter =
+                work.status === "active";
+
+            }
+
+
+            if(filter === "cancelled") {
+
+              matchesFilter =
+                work.status === "cancelled";
+
+            }
+
+
+            return (
+              matchesSearch &&
+              matchesFilter
+            );
+
+          },
+        );
+
+      },
+      [
+        data,
+        search,
+        filter,
+      ],
+    );
+
+
+  const paymentProgress =
+    useMemo(
+      ()=>{
+
+        if(!data) {
+          return 0;
+        }
+
+
+        const billed =
+          Math.max(
+            Number(
+              data.summary.total_billed,
+            ),
+            0,
+          );
+
+        const outstanding =
+          Math.max(
+            Number(
+              data.summary
+                .outstanding_balance,
+            ),
+            0,
+          );
+
+
+        if(billed <= 0) {
+
+          return outstanding <= 0
+            ? 100
+            : 0;
+
+        }
+
+
+        const settledAmount =
+          Math.max(
+            billed - outstanding,
+            0,
+          );
+
+
+        return Math.min(
+          Math.max(
+            (
+              settledAmount /
+              billed
+            ) * 100,
+            0,
+          ),
+          100,
+        );
+
+      },
+      [
+        data,
+      ],
+    );
 
 
   return (
 
     <Layout>
 
-      <main className="doctor-detail-page">
+      <main className="doctor-workspace">
 
         <button
           type="button"
-          className="doctor-detail-back"
-          onClick={()=>navigate(-1)}
+          className="doctor-workspace-back"
+          onClick={()=>
+            navigate("/doctors")
+          }
         >
-          ← Kthehu
+          <ArrowLeft
+            size={15}
+            aria-hidden="true"
+          />
+
+          Mjekët
         </button>
 
 
         {isLoading && (
-          <div className="doctor-detail-loading">
+
+          <section className="doctor-workspace-state">
             Duke ngarkuar...
-          </div>
+          </section>
+
         )}
 
 
         {error && (
-          <div className="doctor-detail-error">
-            {error}
-          </div>
+
+          <section
+            className="doctor-workspace-state is-error"
+            role="alert"
+          >
+            <strong>
+              Të dhënat nuk u ngarkuan
+            </strong>
+
+            <span>{error}</span>
+
+            <button
+              type="button"
+              onClick={()=>
+                void loadDetails()
+              }
+            >
+              Provo përsëri
+            </button>
+          </section>
+
         )}
 
 
@@ -386,32 +637,59 @@ export default function DoctorDetails() {
 
           <>
 
-            <header className="doctor-detail-header">
+            <header className="doctor-workspace-hero">
 
-              <div className="doctor-detail-identity">
+              <div className="doctor-workspace-profile">
 
-                <span className="doctor-detail-avatar">
-                  {
-                    data.doctor.name
-                      .charAt(0)
-                      .toUpperCase()
-                  }
+                <span className="doctor-workspace-avatar">
+                  {getInitials(
+                    data.doctor.name,
+                  )}
                 </span>
 
 
                 <div>
 
-                  <span className="doctor-detail-eyebrow">
-                    Fleta e mjekut
-                  </span>
+                  <div className="doctor-workspace-profile-meta">
 
-                  <h1>{data.doctor.name}</h1>
+                    <span
+                      className={
+                        data.doctor.active
+                          ? "doctor-workspace-status is-active"
+                          : "doctor-workspace-status is-inactive"
+                      }
+                    >
+                      {
+                        data.doctor.active
+                          ? "Aktiv"
+                          : "Jo aktiv"
+                      }
+                    </span>
+
+                    <span>
+                      Kartela e mjekut
+                    </span>
+
+                  </div>
+
+
+                  <h1>
+                    {data.doctor.name}
+                  </h1>
+
 
                   <p>
+
+                    <Phone
+                      size={14}
+                      aria-hidden="true"
+                    />
+
                     {
                       data.doctor.phone ??
                       "Nuk ka numër telefoni"
                     }
+
                   </p>
 
                 </div>
@@ -419,291 +697,443 @@ export default function DoctorDetails() {
               </div>
 
 
-              <div className="doctor-detail-header-actions">
+              <div className="doctor-workspace-actions">
 
-                <Link
-                  to="/works"
-                  className="doctor-detail-button is-secondary"
+                <button
+                  type="button"
+                  className="is-secondary"
+                  onClick={()=>
+                    navigate("/works")
+                  }
                 >
-                  ＋ Krijo punë
-                </Link>
+                  <Plus
+                    size={15}
+                    aria-hidden="true"
+                  />
 
-                <Link
-                  to="/payments"
-                  className="doctor-detail-button is-primary"
+                  Krijo punë
+                </button>
+
+
+                <button
+                  type="button"
+                  className="is-primary"
+                  onClick={()=>
+                    navigate("/payments")
+                  }
                 >
-                  € Regjistro pagesë
-                </Link>
+                  <Banknote
+                    size={15}
+                    aria-hidden="true"
+                  />
+
+                  Regjistro pagesë
+                </button>
 
               </div>
 
             </header>
 
 
-            <section className="doctor-detail-kpis">
+            <section className="doctor-workspace-finance">
 
-              <article>
+              <article className="is-billed">
 
-                <span>Totali i faturuar</span>
+                <div>
 
-                <strong>
-                  {
-                    formatMoney(
-                      data.summary.total_billed,
-                    )
-                  } €
-                </strong>
+                  <span>Totali i faturuar</span>
 
-                <small>
-                  Punët aktive
-                </small>
+                  <strong>
+                    {
+                      formatMoney(
+                        data.summary.total_billed,
+                      )
+                    } €
+                  </strong>
+
+                </div>
+
+                <BriefcaseBusiness
+                  size={21}
+                  aria-hidden="true"
+                />
 
               </article>
 
 
               <article className="is-paid">
 
-                <span>Totali i paguar</span>
+                <div>
 
-                <strong>
-                  {
-                    formatMoney(
-                      data.summary.total_paid,
-                    )
-                  } €
-                </strong>
+                  <span>Totali i paguar</span>
 
-                <small>
-                  {
-                    data.summary.payment_count
-                  } pagesa
-                </small>
+                  <strong>
+                    {
+                      formatMoney(
+                        data.summary.total_paid,
+                      )
+                    } €
+                  </strong>
+
+                  <small>
+                    {
+                      data.summary.payment_count
+                    } pagesa
+                  </small>
+
+                </div>
+
+                <CheckCircle2
+                  size={21}
+                  aria-hidden="true"
+                />
 
               </article>
 
 
               <article className="is-balance">
 
-                <span>Mbetja</span>
+                <div>
 
-                <strong>
-                  {
-                    formatMoney(
-                      data.summary
-                        .outstanding_balance,
-                    )
-                  } €
-                </strong>
+                  <span>Mbetja</span>
 
-                <small>
-                  Për t'u paguar
-                </small>
+                  <strong>
+                    {
+                      formatMoney(
+                        data.summary
+                          .outstanding_balance,
+                      )
+                    } €
+                  </strong>
+
+                  <small>
+                    Për t'u paguar
+                  </small>
+
+                </div>
+
+                <CircleDollarSign
+                  size={21}
+                  aria-hidden="true"
+                />
 
               </article>
 
 
-              <article>
+              <article className="is-works">
 
-                <span>Punët</span>
+                <div>
 
-                <strong>
-                  {
-                    data.summary.total_work_count
-                  }
-                </strong>
+                  <span>Punët</span>
 
-                <small>
-                  {
-                    data.summary.active_work_count
-                  } aktive
-                </small>
+                  <strong>
+                    {
+                      data.summary.total_work_count
+                    }
+                  </strong>
+
+                  <small>
+                    {
+                      data.summary.active_work_count
+                    } aktive
+                  </small>
+
+                </div>
+
+                <Layers3
+                  size={21}
+                  aria-hidden="true"
+                />
 
               </article>
 
             </section>
 
 
-            <section className="doctor-detail-content">
+            <section className="doctor-workspace-progress">
 
-              <article className="doctor-detail-card doctor-detail-works">
+              <div>
 
-                <div className="doctor-detail-card-header">
+                <span>
+                  Progresi i pagesave
+                </span>
 
-                  <div>
-                    <h2>Historiku i punëve</h2>
+                <strong>
+                  {
+                    paymentProgress.toFixed(0)
+                  }%
+                </strong>
 
-                    <p>
-                      {
-                        filteredWorks.length
-                      } nga{" "}
-                      {
-                        data.works.length
-                      } punë
-                    </p>
-                  </div>
-
-                </div>
+              </div>
 
 
-                <div className="doctor-detail-filters">
+              <span className="doctor-workspace-progress-track">
 
-                  <div className="doctor-detail-search">
+                <i
+                  style={{
+                    width:
+                      `${paymentProgress}%`,
+                  }}
+                />
 
-                    <span>⌕</span>
+              </span>
 
-                    <input
-                      type="search"
-                      value={search}
-                      onChange={(event)=>
-                        setSearch(
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Kërko pacientin ose numrin..."
-                    />
-
-                  </div>
+            </section>
 
 
-                  <select
-                    value={filter}
-                    onChange={(event)=>
-                      setFilter(
-                        event.target.value,
-                      )
+            <section className="doctor-workspace-main">
+
+              <article className="doctor-workspace-panel">
+
+                <nav
+                  className="doctor-workspace-tabs"
+                  aria-label="Përmbajtja e kartelës"
+                >
+
+                  <button
+                    type="button"
+                    className={
+                      activeTab === "works"
+                        ? "is-active"
+                        : ""
+                    }
+                    onClick={()=>
+                      setActiveTab("works")
                     }
                   >
-                    <option value="all">
-                      Të gjitha
-                    </option>
+                    <BriefcaseBusiness
+                      size={15}
+                      aria-hidden="true"
+                    />
 
-                    <option value="unpaid">
-                      Të papaguara
-                    </option>
+                    Punët
 
-                    <option value="paid">
-                      Të paguara
-                    </option>
-
-                    <option value="active">
-                      Aktive
-                    </option>
-
-                    <option value="cancelled">
-                      Anuluar
-                    </option>
-                  </select>
-
-                </div>
+                    <span>
+                      {data.works.length}
+                    </span>
+                  </button>
 
 
-                <div className="doctor-detail-table-scroll">
+                  <button
+                    type="button"
+                    className={
+                      activeTab === "payments"
+                        ? "is-active"
+                        : ""
+                    }
+                    onClick={()=>
+                      setActiveTab("payments")
+                    }
+                  >
+                    <Banknote
+                      size={15}
+                      aria-hidden="true"
+                    />
 
-                  <table className="doctor-detail-table">
+                    Pagesat
 
-                    <thead>
+                    <span>
+                      {data.payments.length}
+                    </span>
+                  </button>
 
-                      <tr>
-                        <th>Nr.</th>
-                        <th>Pacienti</th>
-                        <th>Totali</th>
-                        <th>Paguar</th>
-                        <th>Mbetja</th>
-                        <th>Statusi</th>
-                      </tr>
-
-                    </thead>
+                </nav>
 
 
-                    <tbody>
+                {activeTab === "works" && (
 
-                      {filteredWorks.map((work)=>(
+                  <>
 
-                        <tr
-                          key={work.id}
-                          tabIndex={0}
-                          role="button"
-                          aria-label={
-                            `Hap punën ${getWorkNumber(work)}`
+                    <header className="doctor-workspace-panel-header">
+
+                      <div>
+
+                        <h2>Historiku i punëve</h2>
+
+                        <p>
+                          {
+                            filteredWorks.length
+                          } nga{" "}
+                          {
+                            data.works.length
+                          } punë
+                        </p>
+
+                      </div>
+
+                    </header>
+
+
+                    <div className="doctor-workspace-toolbar">
+
+                      <label className="doctor-workspace-search">
+
+                        <Search
+                          size={16}
+                          aria-hidden="true"
+                        />
+
+                        <input
+                          type="search"
+                          value={search}
+                          onChange={(event)=>
+                            setSearch(
+                              event.target.value,
+                            )
                           }
-                          onClick={()=>
-                            setSelectedWork(work)
-                          }
-                          onKeyDown={(event)=>{
+                          placeholder="Kërko pacientin ose numrin..."
+                        />
 
-                            if(
-                              event.key === "Enter" ||
-                              event.key === " "
-                            ) {
+                      </label>
 
-                              event.preventDefault();
-                              setSelectedWork(work);
 
+                      <select
+                        value={filter}
+                        onChange={(event)=>
+                          setFilter(
+                            event.target.value,
+                          )
+                        }
+                      >
+                        <option value="all">
+                          Të gjitha punët
+                        </option>
+
+                        <option value="unpaid">
+                          Të papaguara
+                        </option>
+
+                        <option value="paid">
+                          Të paguara
+                        </option>
+
+                        <option value="active">
+                          Aktive
+                        </option>
+
+                        <option value="cancelled">
+                          Anuluar
+                        </option>
+                      </select>
+
+                    </div>
+
+
+                    <div className="doctor-workspace-list">
+
+                      {filteredWorks.map(
+                        (work)=>(
+
+                          <button
+                            key={work.id}
+                            type="button"
+                            className="doctor-workspace-work"
+                            onClick={()=>
+                              setSelectedWork(work)
                             }
+                          >
 
-                          }}
-                        >
+                            <span className="doctor-workspace-work-icon">
 
-                          <td>
-                            <strong>
-                              {getWorkNumber(work)}
-                            </strong>
-                          </td>
+                              <FileText
+                                size={17}
+                                aria-hidden="true"
+                              />
 
-                          <td>
+                            </span>
 
-                            <div className="doctor-detail-patient-cell">
+
+                            <span className="doctor-workspace-work-identity">
 
                               <strong>
-                                {work.first_name}{" "}
-                                {work.last_name}
+                                {
+                                  getWorkNumber(work)
+                                }
                               </strong>
 
                               <span>
-                                {formatDate(work.work_date)}
+                                {work.first_name}{" "}
+                                {work.last_name}
                               </span>
 
-                              {work.is_repeat && (
-                                <small>
-                                  Përsëritje
-                                </small>
-                              )}
+                              <small>
 
-                            </div>
+                                <CalendarDays
+                                  size={11}
+                                  aria-hidden="true"
+                                />
 
-                          </td>
+                                {
+                                  formatDate(
+                                    work.work_date,
+                                  )
+                                }
 
-                          <td>
-                            {
-                              formatMoney(
-                                work.total_amount,
-                              )
-                            } €
-                          </td>
+                                {
+                                  work.material_name &&
+                                  ` · ${work.material_name}`
+                                }
 
-                          <td className="is-paid">
-                            {
-                              formatMoney(
-                                work.paid_amount,
-                              )
-                            } €
-                          </td>
+                                {
+                                  work.color_name &&
+                                  ` · ${work.color_name}`
+                                }
 
-                          <td className="is-balance">
-                            <strong>
-                              {
-                                formatMoney(
-                                  work.remaining_amount,
-                                )
-                              } €
-                            </strong>
-                          </td>
+                              </small>
 
-                          <td>
+                            </span>
+
+
+                            <span className="doctor-workspace-work-money">
+
+                              <small>Totali</small>
+
+                              <strong>
+                                {
+                                  formatMoney(
+                                    work.total_amount,
+                                  )
+                                } €
+                              </strong>
+
+                            </span>
+
+
+                            <span className="doctor-workspace-work-money is-paid">
+
+                              <small>Paguar</small>
+
+                              <strong>
+                                {
+                                  formatMoney(
+                                    work.paid_amount,
+                                  )
+                                } €
+                              </strong>
+
+                            </span>
+
+
+                            <span className="doctor-workspace-work-money is-balance">
+
+                              <small>Mbetja</small>
+
+                              <strong>
+                                {
+                                  formatMoney(
+                                    work.remaining_amount,
+                                  )
+                                } €
+                              </strong>
+
+                            </span>
+
 
                             <span
                               className={
-                                `doctor-work-status is-${work.payment_status}`
+                                `doctor-workspace-payment-status ${getPaymentStatusClass(
+                                  work.payment_status,
+                                )}`
                               }
                             >
                               {
@@ -713,105 +1143,252 @@ export default function DoctorDetails() {
                               }
                             </span>
 
-                          </td>
 
-                        </tr>
+                            <ArrowRight
+                              className="doctor-workspace-work-arrow"
+                              size={15}
+                              aria-hidden="true"
+                            />
 
-                      ))}
+                          </button>
+
+                        ),
+                      )}
 
 
                       {filteredWorks.length === 0 && (
 
-                        <tr>
+                        <div className="doctor-workspace-empty">
 
-                          <td
-                            colSpan={6}
-                            className="doctor-detail-empty"
-                          >
-                            Nuk u gjet asnjë punë.
-                          </td>
+                          <BriefcaseBusiness
+                            size={27}
+                            aria-hidden="true"
+                          />
 
-                        </tr>
+                          <strong>
+                            Nuk u gjet asnjë punë
+                          </strong>
+
+                          <span>
+                            Ndryshoni kërkimin ose filtrin.
+                          </span>
+
+                        </div>
 
                       )}
 
-                    </tbody>
+                    </div>
 
-                  </table>
+                  </>
 
-                </div>
-
-              </article>
+                )}
 
 
-              <aside className="doctor-detail-card doctor-detail-payments">
+                {activeTab === "payments" && (
 
-                <div className="doctor-detail-card-header">
+                  <>
 
-                  <div>
-                    <h2>Pagesat</h2>
-
-                    <p>
-                      {
-                        data.payments.length
-                      } pagesa të regjistruara
-                    </p>
-                  </div>
-
-                </div>
-
-
-                <div className="doctor-payment-list">
-
-                  {data.payments.map((payment)=>(
-
-                    <div
-                      key={payment.id}
-                      className="doctor-payment-row"
-                    >
+                    <header className="doctor-workspace-panel-header">
 
                       <div>
 
-                        <strong>
-                          {
-                            formatMoney(
-                              payment.amount,
-                            )
-                          } €
-                        </strong>
+                        <h2>Historiku i pagesave</h2>
 
-                        <span>
+                        <p>
                           {
-                            payment.note ??
-                            "Pa shënim"
-                          }
-                        </span>
+                            data.payments.length
+                          } pagesa të regjistruara
+                        </p>
 
                       </div>
 
 
-                      <time>
-                        {
-                          formatDate(
-                            payment.payment_date,
-                          )
+                      <button
+                        type="button"
+                        onClick={()=>
+                          navigate("/payments")
                         }
-                      </time>
+                      >
+                        Regjistro pagesë
+
+                        <ArrowRight
+                          size={14}
+                          aria-hidden="true"
+                        />
+                      </button>
+
+                    </header>
+
+
+                    <div className="doctor-workspace-payments">
+
+                      {data.payments.map(
+                        (payment)=>(
+
+                          <article
+                            key={payment.id}
+                            className="doctor-workspace-payment"
+                          >
+
+                            <span>
+
+                              <Banknote
+                                size={17}
+                                aria-hidden="true"
+                              />
+
+                            </span>
+
+
+                            <div>
+
+                              <strong>
+                                {
+                                  formatMoney(
+                                    payment.amount,
+                                  )
+                                } €
+                              </strong>
+
+                              <p>
+                                {
+                                  payment.note ??
+                                  "Pa shënim"
+                                }
+                              </p>
+
+                            </div>
+
+
+                            <time>
+                              {
+                                formatDate(
+                                  payment.payment_date,
+                                )
+                              }
+                            </time>
+
+                          </article>
+
+                        ),
+                      )}
+
+
+                      {data.payments.length === 0 && (
+
+                        <div className="doctor-workspace-empty">
+
+                          <Banknote
+                            size={27}
+                            aria-hidden="true"
+                          />
+
+                          <strong>
+                            Nuk ka pagesa
+                          </strong>
+
+                          <span>
+                            Nuk është regjistruar asnjë pagesë për këtë muaj.
+                          </span>
+
+                        </div>
+
+                      )}
 
                     </div>
 
-                  ))}
+                  </>
+
+                )}
+
+              </article>
 
 
-                  {data.payments.length === 0 && (
+              <aside className="doctor-workspace-summary">
 
-                    <div className="doctor-detail-empty">
-                      Nuk ka pagesa.
-                    </div>
+                <div>
 
-                  )}
+                  <span className="doctor-workspace-summary-icon">
+
+                    <UserRound
+                      size={18}
+                      aria-hidden="true"
+                    />
+
+                  </span>
+
+                  <h2>Përmbledhje</h2>
 
                 </div>
+
+
+                <dl>
+
+                  <div>
+                    <dt>Statusi</dt>
+
+                    <dd>
+                      {
+                        data.doctor.active
+                          ? "Aktiv"
+                          : "Jo aktiv"
+                      }
+                    </dd>
+                  </div>
+
+
+                  <div>
+                    <dt>Punë aktive</dt>
+
+                    <dd>
+                      {
+                        data.summary
+                          .active_work_count
+                      }
+                    </dd>
+                  </div>
+
+
+                  <div>
+                    <dt>Pagesa</dt>
+
+                    <dd>
+                      {
+                        data.summary.payment_count
+                      }
+                    </dd>
+                  </div>
+
+
+                  <div>
+                    <dt>Mbetja</dt>
+
+                    <dd className="is-balance">
+                      {
+                        formatMoney(
+                          data.summary
+                            .outstanding_balance,
+                        )
+                      } €
+                    </dd>
+                  </div>
+
+                </dl>
+
+
+                <button
+                  type="button"
+                  onClick={()=>
+                    navigate("/payments")
+                  }
+                >
+                  Menaxho pagesat
+
+                  <ArrowRight
+                    size={14}
+                    aria-hidden="true"
+                  />
+                </button>
 
               </aside>
 
@@ -825,7 +1402,8 @@ export default function DoctorDetails() {
         {selectedWork && (
 
           <div
-            className="doctor-work-drawer-backdrop"
+            className="doctor-workspace-drawer-backdrop"
+            role="presentation"
             onMouseDown={(event)=>{
 
               if(
@@ -839,9 +1417,10 @@ export default function DoctorDetails() {
           >
 
             <aside
-              className="doctor-work-drawer"
+              className="doctor-workspace-drawer"
               role="dialog"
               aria-modal="true"
+              aria-labelledby="doctor-workspace-drawer-title"
             >
 
               <header>
@@ -850,9 +1429,14 @@ export default function DoctorDetails() {
 
                   <span>Detajet e punës</span>
 
-                  <h2>
+                  <h2 id="doctor-workspace-drawer-title">
                     {getWorkNumber(selectedWork)}
                   </h2>
+
+                  <p>
+                    {selectedWork.first_name}{" "}
+                    {selectedWork.last_name}
+                  </p>
 
                 </div>
 
@@ -862,26 +1446,63 @@ export default function DoctorDetails() {
                   onClick={()=>
                     setSelectedWork(null)
                   }
+                  aria-label="Mbyll"
                 >
-                  ×
+                  <X
+                    size={18}
+                    aria-hidden="true"
+                  />
                 </button>
 
               </header>
 
 
-              <div className="doctor-work-drawer-body">
+              <div className="doctor-workspace-drawer-body">
 
-                <section className="doctor-work-summary-grid">
+                <section className="doctor-workspace-drawer-finance">
 
                   <div>
-                    <span>Pacienti</span>
+                    <span>Totali</span>
 
                     <strong>
-                      {selectedWork.first_name}{" "}
-                      {selectedWork.last_name}
+                      {
+                        formatMoney(
+                          selectedWork.total_amount,
+                        )
+                      } €
                     </strong>
                   </div>
 
+
+                  <div className="is-paid">
+                    <span>Paguar</span>
+
+                    <strong>
+                      {
+                        formatMoney(
+                          selectedWork.paid_amount,
+                        )
+                      } €
+                    </strong>
+                  </div>
+
+
+                  <div className="is-balance">
+                    <span>Mbetja</span>
+
+                    <strong>
+                      {
+                        formatMoney(
+                          selectedWork.remaining_amount,
+                        )
+                      } €
+                    </strong>
+                  </div>
+
+                </section>
+
+
+                <section className="doctor-workspace-drawer-grid">
 
                   <div>
                     <span>Data</span>
@@ -921,6 +1542,19 @@ export default function DoctorDetails() {
 
 
                   <div>
+                    <span>Lloji</span>
+
+                    <strong>
+                      {
+                        selectedWork.is_repeat
+                          ? "Përsëritje"
+                          : "Punë e re"
+                      }
+                    </strong>
+                  </div>
+
+
+                  <div>
                     <span>Mënyra e çmimit</span>
 
                     <strong>
@@ -935,50 +1569,13 @@ export default function DoctorDetails() {
 
 
                   <div>
-                    <span>
-                      {
-                        selectedWork.pricing_mode ===
-                        "fixed_total"
-                          ? "Çmimi global"
-                          : "Çmimi / dhëmb"
-                      }
-                    </span>
-
-                    <strong>
-                      {
-                        formatMoney(
-                          selectedWork.pricing_mode ===
-                          "fixed_total"
-                            ? selectedWork.total_amount
-                            : selectedWork.price_per_tooth,
-                        )
-                      } €
-                    </strong>
-                  </div>
-
-
-                  <div>
-                    <span>Lloji i punës</span>
-
-                    <strong>
-                      {
-                        selectedWork.is_repeat
-                          ? "Përsëritje"
-                          : "Punë e re"
-                      }
-                    </strong>
-                  </div>
-
-
-                  <div>
                     <span>Statusi</span>
 
                     <strong>
                       {
-                        selectedWork.status ===
-                        "cancelled"
-                          ? "Anuluar"
-                          : "Aktive"
+                        getPaymentStatusLabel(
+                          selectedWork.payment_status,
+                        )
                       }
                     </strong>
                   </div>
@@ -986,9 +1583,9 @@ export default function DoctorDetails() {
                 </section>
 
 
-                <section className="doctor-work-description">
+                <section className="doctor-workspace-drawer-description">
 
-                  <h3>Përshkrimi i punës</h3>
+                  <h3>Përshkrimi</h3>
 
                   <p>
                     {
@@ -1000,53 +1597,9 @@ export default function DoctorDetails() {
                 </section>
 
 
-                <section className="doctor-work-finance">
+                <section className="doctor-workspace-drawer-teeth">
 
-                  <div>
-                    <span>Totali</span>
-
-                    <strong>
-                      {
-                        formatMoney(
-                          selectedWork.total_amount,
-                        )
-                      } €
-                    </strong>
-                  </div>
-
-
-                  <div className="is-paid">
-                    <span>Paguar</span>
-
-                    <strong>
-                      {
-                        formatMoney(
-                          selectedWork.paid_amount,
-                        )
-                      } €
-                    </strong>
-                  </div>
-
-
-                  <div className="is-balance">
-                    <span>Mbetja</span>
-
-                    <strong>
-                      {
-                        formatMoney(
-                          selectedWork
-                            .remaining_amount,
-                        )
-                      } €
-                    </strong>
-                  </div>
-
-                </section>
-
-
-                <section className="doctor-work-teeth">
-
-                  <div className="doctor-work-section-title">
+                  <header>
 
                     <h3>Dhëmbët</h3>
 
@@ -1056,10 +1609,10 @@ export default function DoctorDetails() {
                       } gjithsej
                     </span>
 
-                  </div>
+                  </header>
 
 
-                  <div className="doctor-work-teeth-list">
+                  <div>
 
                     {selectedWork.teeth.map(
                       (tooth)=>(
@@ -1081,21 +1634,6 @@ export default function DoctorDetails() {
 
                       ),
                     )}
-
-                  </div>
-
-
-                  <div className="doctor-work-legend">
-
-                    <span>
-                      <i />
-                      Normal
-                    </span>
-
-                    <span>
-                      <i className="is-antar" />
-                      Antar
-                    </span>
 
                   </div>
 

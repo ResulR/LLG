@@ -7,13 +7,15 @@ import {
 import {
   Boxes,
   ChevronRight,
+  CircleDollarSign,
   Palette,
   Pencil,
+  Plus,
   Search,
   Stethoscope,
   UserCheck,
-  UserPlus,
   UserX,
+  X,
 } from "lucide-react";
 
 import {
@@ -35,69 +37,185 @@ type Doctor = {
   phone:string|null;
   active:boolean;
   created_at:string;
+  total_billed:string;
+  total_paid:string;
+  outstanding_balance:string;
+  active_work_count:number;
+  total_work_count:number;
+  unpaid_work_count:number;
 };
 
 
 type MessageType =
-  "success"|"error"|"";
+  "success" |
+  "error" |
+  "";
 
 
-type DoctorsTab =
-  "doctors" |
+type CatalogTab =
   "materials" |
   "colors";
 
 
+function formatMoney(
+  value:string|number,
+) {
+
+  return new Intl.NumberFormat(
+    "de-DE",
+    {
+      minimumFractionDigits:2,
+      maximumFractionDigits:2,
+    },
+  ).format(
+    Number(value || 0),
+  );
+
+}
+
+
+function getInitials(
+  value:string,
+) {
+
+  const parts =
+    value
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+
+  if(parts.length === 0) {
+    return "DR";
+  }
+
+
+  if(parts.length === 1) {
+
+    return parts[0]
+      .slice(0,2)
+      .toUpperCase();
+
+  }
+
+
+  return (
+    parts[0][0] +
+    parts[parts.length - 1][0]
+  ).toUpperCase();
+
+}
+
+
 export default function Doctors() {
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     confirmAction,
-  } = useConfirm();
+  } =
+    useConfirm();
 
-  const [doctors,setDoctors] =
+  const [
+    doctors,
+    setDoctors,
+  ] =
     useState<Doctor[]>([]);
 
-  const [name,setName] =
+  const [
+    name,
+    setName,
+  ] =
     useState("");
 
-  const [phone,setPhone] =
+  const [
+    phone,
+    setPhone,
+  ] =
     useState("");
 
-  const [editingId,setEditingId] =
-    useState<number|null>(null);
+  const [
+    editingId,
+    setEditingId,
+  ] =
+    useState<number|null>(
+      null,
+    );
 
-  const [search,setSearch] =
+  const [
+    search,
+    setSearch,
+  ] =
     useState("");
 
-  const [statusFilter,setStatusFilter] =
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
     useState("all");
 
-  const [loading,setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [saving,setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false);
 
-  const [actionDoctorId,setActionDoctorId] =
-    useState<number|null>(null);
+  const [
+    actionDoctorId,
+    setActionDoctorId,
+  ] =
+    useState<number|null>(
+      null,
+    );
 
-  const [message,setMessage] =
+  const [
+    message,
+    setMessage,
+  ] =
     useState("");
 
-  const [messageType,setMessageType] =
+  const [
+    messageType,
+    setMessageType,
+  ] =
     useState<MessageType>("");
 
-  const [activeTab,setActiveTab] =
-    useState<DoctorsTab>(
-      "doctors",
+  const [
+    formOpen,
+    setFormOpen,
+  ] =
+    useState(false);
+
+  const [
+    catalogOpen,
+    setCatalogOpen,
+  ] =
+    useState(false);
+
+  const [
+    catalogTab,
+    setCatalogTab,
+  ] =
+    useState<CatalogTab>(
+      "materials",
     );
 
 
   const doctorFormIsDirty =
     useMemo(
       ()=>{
+
+        if(!formOpen) {
+          return false;
+        }
+
 
         if(editingId === null) {
 
@@ -132,6 +250,7 @@ export default function Doctors() {
       [
         doctors,
         editingId,
+        formOpen,
         name,
         phone,
       ],
@@ -152,7 +271,9 @@ export default function Doctors() {
     try {
 
       const response =
-        await api("/doctors");
+        await api(
+          "/doctors",
+        );
 
 
       if(!response.ok) {
@@ -189,70 +310,104 @@ export default function Doctors() {
   }
 
 
-  useEffect(()=>{
+  useEffect(
+    ()=>{
 
-    loadDoctors();
+      void loadDoctors();
 
-  },[]);
+    },
+    [],
+  );
 
 
   const activeDoctorsCount =
     useMemo(
       ()=>doctors.filter(
-        (doctor)=>doctor.active,
+        (doctor)=>
+          doctor.active,
       ).length,
-      [doctors],
+      [
+        doctors,
+      ],
     );
 
 
   const inactiveDoctorsCount =
-    doctors.length - activeDoctorsCount;
+    doctors.length -
+    activeDoctorsCount;
+
+
+  const totalOutstanding =
+    useMemo(
+      ()=>doctors.reduce(
+        (
+          total,
+          doctor,
+        )=>
+          total +
+          Number(
+            doctor.outstanding_balance ||
+            0,
+          ),
+        0,
+      ),
+      [
+        doctors,
+      ],
+    );
 
 
   const filteredDoctors =
-    useMemo(()=>{
+    useMemo(
+      ()=>{
 
-      const normalizedSearch =
-        search.trim().toLowerCase();
-
-
-      return doctors.filter(
-        (doctor)=>{
-
-          const matchesSearch = [
-            doctor.name,
-            doctor.phone ?? "",
-          ]
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedSearch);
+        const normalizedSearch =
+          search
+            .trim()
+            .toLowerCase();
 
 
-          const matchesStatus =
-            statusFilter === "all" ||
-            (
-              statusFilter === "active" &&
-              doctor.active
-            ) ||
-            (
-              statusFilter === "inactive" &&
-              !doctor.active
+        return doctors.filter(
+          (doctor)=>{
+
+            const matchesSearch = [
+              doctor.name,
+              doctor.phone ?? "",
+            ]
+              .join(" ")
+              .toLowerCase()
+              .includes(
+                normalizedSearch,
+              );
+
+
+            const matchesStatus =
+              statusFilter === "all" ||
+              (
+                statusFilter === "active" &&
+                doctor.active
+              ) ||
+              (
+                statusFilter === "inactive" &&
+                !doctor.active
+              );
+
+
+            return (
+              matchesSearch &&
+              matchesStatus
             );
 
+          },
+        );
 
-          return (
-            matchesSearch &&
-            matchesStatus
-          );
-
-        },
-      );
-
-    },[
-      doctors,
-      search,
-      statusFilter,
-    ]);
+      },
+      [
+        doctors,
+        search,
+        statusFilter,
+      ],
+    );
 
 
   function resetForm() {
@@ -260,6 +415,54 @@ export default function Doctors() {
     setName("");
     setPhone("");
     setEditingId(null);
+
+  }
+
+
+  function closeForm() {
+
+    if(saving) {
+      return;
+    }
+
+    resetForm();
+    setFormOpen(false);
+
+  }
+
+
+  function createDoctor() {
+
+    resetForm();
+
+    setMessage("");
+    setMessageType("");
+
+    setFormOpen(true);
+
+  }
+
+
+  function editDoctor(
+    doctor:Doctor,
+  ) {
+
+    setEditingId(
+      doctor.id,
+    );
+
+    setName(
+      doctor.name,
+    );
+
+    setPhone(
+      doctor.phone ?? "",
+    );
+
+    setMessage("");
+    setMessageType("");
+
+    setFormOpen(true);
 
   }
 
@@ -299,22 +502,23 @@ export default function Doctors() {
 
     try {
 
-      const response = await api(
-        editingId
-          ? `/doctors/${editingId}`
-          : "/doctors",
-        {
-          method:
-            editingId
-              ? "PUT"
-              : "POST",
+      const response =
+        await api(
+          editingId === null
+            ? "/doctors"
+            : `/doctors/${editingId}`,
+          {
+            method:
+              editingId === null
+                ? "POST"
+                : "PUT",
 
-          body:JSON.stringify({
-            name:cleanName,
-            phone:cleanPhone,
-          }),
-        },
-      );
+            body:JSON.stringify({
+              name:cleanName,
+              phone:cleanPhone,
+            }),
+          },
+        );
 
 
       if(!response.ok) {
@@ -330,6 +534,7 @@ export default function Doctors() {
         editingId !== null;
 
       resetForm();
+      setFormOpen(false);
 
       setMessage(
         wasEditing
@@ -347,9 +552,9 @@ export default function Doctors() {
       console.error(error);
 
       setMessage(
-        editingId
-          ? "Ndryshimet nuk mund të ruheshin."
-          : "Mjeku nuk mund të shtohej.",
+        editingId === null
+          ? "Mjeku nuk mund të shtohej."
+          : "Ndryshimet nuk mund të ruheshin.",
       );
 
       setMessageType("error");
@@ -364,31 +569,13 @@ export default function Doctors() {
   }
 
 
-  function editDoctor(
-    doctor:Doctor,
-  ) {
-
-    setEditingId(doctor.id);
-    setName(doctor.name);
-    setPhone(doctor.phone ?? "");
-
-    setMessage("");
-    setMessageType("");
-
-    window.scrollTo({
-      top:0,
-      behavior:"smooth",
-    });
-
-  }
-
-
   async function toggleStatus(
     doctor:Doctor,
   ) {
 
     const nextStatus =
       !doctor.active;
+
 
     const confirmed =
       await confirmAction({
@@ -419,23 +606,27 @@ export default function Doctors() {
     }
 
 
-    setActionDoctorId(doctor.id);
+    setActionDoctorId(
+      doctor.id,
+    );
+
     setMessage("");
     setMessageType("");
 
 
     try {
 
-      const response = await api(
-        `/doctors/${doctor.id}/status`,
-        {
-          method:"PATCH",
+      const response =
+        await api(
+          `/doctors/${doctor.id}/status`,
+          {
+            method:"PATCH",
 
-          body:JSON.stringify({
-            active:nextStatus,
-          }),
-        },
-      );
+            body:JSON.stringify({
+              active:nextStatus,
+            }),
+          },
+        );
 
 
       if(!response.ok) {
@@ -494,169 +685,128 @@ export default function Doctors() {
 
     <Layout>
 
-      <main className="doctors-page">
+      <main className="doctor-directory">
 
-        <header className="doctors-page-header">
+        <header className="doctor-directory-header">
 
           <div>
 
-            <span className="doctors-eyebrow">
-              Menaxhimi i laboratorit
+            <span>
+              {doctors.length} mjekë gjithsej
             </span>
 
             <h1>Mjekët</h1>
 
             <p>
-              Shtoni, kërkoni dhe menaxhoni
-              mjekët e laboratorit.
+              Menaxhoni mjekët dhe shikoni
+              gjendjen e tyre financiare.
             </p>
+
+          </div>
+
+
+          <div className="doctor-directory-actions">
+
+            <button
+              type="button"
+              className="is-secondary"
+              onClick={()=>
+                setCatalogOpen(true)
+              }
+            >
+              <Boxes
+                size={15}
+                aria-hidden="true"
+              />
+
+              Katalogu
+            </button>
+
+
+            <button
+              type="button"
+              className="is-primary"
+              onClick={createDoctor}
+            >
+              <Plus
+                size={15}
+                aria-hidden="true"
+              />
+
+              Mjek i ri
+            </button>
 
           </div>
 
         </header>
 
 
-        <nav
-          className="doctors-module-tabs"
-          role="tablist"
-          aria-label="Seksionet e menaxhimit"
-        >
-
-          <button
-            id="doctors-tab-doctors"
-            type="button"
-            role="tab"
-            aria-controls="doctors-panel-doctors"
-            className={
-              activeTab === "doctors"
-                ? "is-active"
-                : ""
-            }
-            onClick={()=>
-              setActiveTab("doctors")
-            }
-            aria-selected={
-              activeTab === "doctors"
-            }
-          >
-            <Stethoscope size={18} />
-
-            <span>Mjekët</span>
-          </button>
-
-
-          <button
-            id="doctors-tab-materials"
-            type="button"
-            role="tab"
-            aria-controls="doctors-panel-materials"
-            className={
-              activeTab === "materials"
-                ? "is-active"
-                : ""
-            }
-            onClick={()=>
-              setActiveTab("materials")
-            }
-            aria-selected={
-              activeTab === "materials"
-            }
-          >
-            <Boxes size={18} />
-
-            <span>Materialet</span>
-          </button>
-
-
-          <button
-            id="doctors-tab-colors"
-            type="button"
-            role="tab"
-            aria-controls="doctors-panel-colors"
-            className={
-              activeTab === "colors"
-                ? "is-active"
-                : ""
-            }
-            onClick={()=>
-              setActiveTab("colors")
-            }
-            aria-selected={
-              activeTab === "colors"
-            }
-          >
-            <Palette size={18} />
-
-            <span>Ngjyrat</span>
-          </button>
-
-        </nav>
-
-
-        <section
-          id="doctors-panel-doctors"
-          className="doctors-tab-panel"
-          role="tabpanel"
-          aria-labelledby="doctors-tab-doctors"
-          hidden={
-            activeTab !== "doctors"
-          }
-        >
-
-        <section className="doctors-kpi-grid">
+        <section className="doctor-directory-summary">
 
           <article>
 
-            <span className="doctors-kpi-icon is-total">
-              <Stethoscope size={21} />
-            </span>
+            <Stethoscope
+              size={18}
+              aria-hidden="true"
+            />
 
             <div>
               <span>Gjithsej</span>
-
-              <strong>
-                {doctors.length}
-              </strong>
-
-              <small>Mjekë të regjistruar</small>
+              <strong>{doctors.length}</strong>
             </div>
 
           </article>
 
 
-          <article>
+          <article className="is-active">
 
-            <span className="doctors-kpi-icon is-active">
-              <UserCheck size={21} />
-            </span>
+            <UserCheck
+              size={18}
+              aria-hidden="true"
+            />
 
             <div>
               <span>Aktivë</span>
-
               <strong>
                 {activeDoctorsCount}
               </strong>
-
-              <small>Mund të marrin punë</small>
             </div>
 
           </article>
 
 
-          <article>
+          <article className="is-inactive">
 
-            <span className="doctors-kpi-icon is-inactive">
-              <UserX size={21} />
-            </span>
+            <UserX
+              size={18}
+              aria-hidden="true"
+            />
 
             <div>
               <span>Jo aktivë</span>
-
               <strong>
                 {inactiveDoctorsCount}
               </strong>
+            </div>
 
-              <small>Të çaktivizuar</small>
+          </article>
+
+
+          <article className="is-debt">
+
+            <CircleDollarSign
+              size={18}
+              aria-hidden="true"
+            />
+
+            <div>
+              <span>Borxh total</span>
+
+              <strong>
+                {formatMoney(
+                  totalOutstanding,
+                )} €
+              </strong>
             </div>
 
           </article>
@@ -664,468 +814,619 @@ export default function Doctors() {
         </section>
 
 
-        <section className="doctors-main-grid">
+        <section className="doctor-directory-toolbar">
 
-          <article className="doctors-form-card">
+          <div className="doctor-directory-search">
 
-            <div className="doctors-section-title">
+            <Search
+              size={16}
+              aria-hidden="true"
+            />
+
+            <input
+              type="search"
+              value={search}
+              onChange={(event)=>
+                setSearch(
+                  event.target.value,
+                )
+              }
+              placeholder="Kërko mjekun ose telefonin..."
+            />
+
+          </div>
+
+
+          <select
+            value={statusFilter}
+            onChange={(event)=>
+              setStatusFilter(
+                event.target.value,
+              )
+            }
+          >
+            <option value="all">
+              Të gjithë mjekët
+            </option>
+
+            <option value="active">
+              Vetëm aktivë
+            </option>
+
+            <option value="inactive">
+              Vetëm jo aktivë
+            </option>
+          </select>
+
+
+          <span>
+            {filteredDoctors.length} rezultate
+          </span>
+
+        </section>
+
+
+        {message && (
+
+          <AppToast
+            message={message}
+            type={
+              messageType === "success"
+                ? "success"
+                : "error"
+            }
+            onClose={()=>{
+
+              setMessage("");
+              setMessageType("");
+
+            }}
+          />
+
+        )}
+
+
+        {loading && (
+
+          <section className="doctor-directory-empty">
+            Duke ngarkuar...
+          </section>
+
+        )}
+
+
+        {!loading &&
+          filteredDoctors.length === 0 && (
+
+            <section className="doctor-directory-empty">
+
+              <Stethoscope
+                size={28}
+                aria-hidden="true"
+              />
+
+              <strong>
+                Nuk u gjet asnjë mjek
+              </strong>
 
               <span>
-                {
-                  editingId
-                    ? <Pencil size={20} />
-                    : <UserPlus size={20} />
-                }
+                Ndryshoni kërkimin ose filtrin.
               </span>
 
-              <div>
+            </section>
 
-                <h2>
-                  {
-                    editingId
-                      ? "Ndrysho mjekun"
-                      : "Shto mjek"
-                  }
-                </h2>
-
-                <p>
-                  {
-                    editingId
-                      ? "Përditësoni të dhënat e mjekut."
-                      : "Regjistroni një mjek të ri."
-                  }
-                </p>
-
-              </div>
-
-            </div>
+          )}
 
 
-            <form
-              className="doctors-form"
-              onSubmit={saveDoctor}
-            >
+        {!loading &&
+          filteredDoctors.length > 0 && (
 
-              <label>
+            <section className="doctor-directory-grid">
 
-                <span>Emri i mjekut</span>
+              {filteredDoctors.map(
+                (doctor)=>{
 
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(event)=>
-                    setName(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="P.sh. Dr. Arben Krasniqi"
-                  disabled={saving}
-                  required
-                />
+                  const billed =
+                    Math.max(
+                      Number(
+                        doctor.total_billed ||
+                        0,
+                      ),
+                      0,
+                    );
 
-              </label>
+                  const paid =
+                    Math.max(
+                      Number(
+                        doctor.total_paid ||
+                        0,
+                      ),
+                      0,
+                    );
 
-
-              <label>
-
-                <span>Telefoni</span>
-
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(event)=>
-                    setPhone(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="P.sh. 044 123 456"
-                  disabled={saving}
-                />
-
-              </label>
+                  const progress =
+                    billed > 0
+                      ? Math.min(
+                          (
+                            paid /
+                            billed
+                          ) * 100,
+                          100,
+                        )
+                      : 0;
 
 
-              {message && (
+                  return (
 
-                <AppToast
-                  message={message}
-                  type={
-                    messageType === "success"
-                      ? "success"
-                      : "error"
-                  }
-                  onClose={()=>{
+                    <article
+                      key={doctor.id}
+                      className={
+                        doctor.active
+                          ? "doctor-directory-card"
+                          : "doctor-directory-card is-disabled"
+                      }
+                    >
 
-                    setMessage("");
-                    setMessageType("");
+                      <header>
 
-                  }}
-                />
+                        <span className="doctor-directory-avatar">
+                          {getInitials(
+                            doctor.name,
+                          )}
+                        </span>
 
+
+                        <div className="doctor-directory-identity">
+
+                          <strong>
+                            {doctor.name}
+                          </strong>
+
+                          <span>
+                            {
+                              doctor.phone ??
+                              "Pa telefon"
+                            }
+                          </span>
+
+                        </div>
+
+
+                        <span
+                          className={
+                            doctor.active
+                              ? "doctor-directory-status is-active"
+                              : "doctor-directory-status is-inactive"
+                          }
+                        >
+                          {
+                            doctor.active
+                              ? "Aktiv"
+                              : "Jo aktiv"
+                          }
+                        </span>
+
+                      </header>
+
+
+                      <div className="doctor-directory-finance">
+
+                        <div>
+
+                          <span>Borxhi</span>
+
+                          <strong
+                            className={
+                              Number(
+                                doctor
+                                  .outstanding_balance,
+                              ) > 0
+                                ? "has-debt"
+                                : ""
+                            }
+                          >
+                            {
+                              formatMoney(
+                                doctor
+                                  .outstanding_balance,
+                              )
+                            } €
+                          </strong>
+
+                        </div>
+
+
+                        <div>
+
+                          <span>Punë aktive</span>
+
+                          <strong>
+                            {
+                              doctor
+                                .active_work_count
+                            }
+                          </strong>
+
+                        </div>
+
+
+                        <div>
+
+                          <span>Pa paguar</span>
+
+                          <strong>
+                            {
+                              doctor
+                                .unpaid_work_count
+                            }
+                          </strong>
+
+                        </div>
+
+                      </div>
+
+
+                      <div className="doctor-directory-progress">
+
+                        <div>
+                          <span>Paguar</span>
+
+                          <strong>
+                            {
+                              formatMoney(
+                                doctor.total_paid,
+                              )
+                            } €
+                          </strong>
+                        </div>
+
+                        <span className="doctor-directory-progress-track">
+
+                          <i
+                            style={{
+                              width:
+                                `${progress}%`,
+                            }}
+                          />
+
+                        </span>
+
+                      </div>
+
+
+                      <footer>
+
+                        <button
+                          type="button"
+                          className="doctor-directory-edit"
+                          onClick={()=>
+                            editDoctor(
+                              doctor,
+                            )
+                          }
+                        >
+                          <Pencil
+                            size={13}
+                            aria-hidden="true"
+                          />
+
+                          Ndrysho
+                        </button>
+
+
+                        <button
+                          type="button"
+                          className={
+                            doctor.active
+                              ? "doctor-directory-toggle is-deactivate"
+                              : "doctor-directory-toggle is-activate"
+                          }
+                          disabled={
+                            actionDoctorId ===
+                            doctor.id
+                          }
+                          onClick={()=>
+                            void toggleStatus(
+                              doctor,
+                            )
+                          }
+                        >
+                          {
+                            actionDoctorId ===
+                            doctor.id
+                              ? "..."
+                              : doctor.active
+                                ? "Çaktivizo"
+                                : "Aktivizo"
+                          }
+                        </button>
+
+
+                        <button
+                          type="button"
+                          className="doctor-directory-open"
+                          onClick={()=>
+                            navigate(
+                              `/doctors/${doctor.id}`,
+                            )
+                          }
+                        >
+                          Hap kartelën
+
+                          <ChevronRight
+                            size={14}
+                            aria-hidden="true"
+                          />
+                        </button>
+
+                      </footer>
+
+                    </article>
+
+                  );
+
+                },
               )}
 
+            </section>
 
-              <div className="doctors-form-actions">
+          )}
 
-                {editingId && (
+
+        {formOpen && (
+
+          <div
+            className="doctor-form-backdrop"
+            role="presentation"
+            onMouseDown={(event)=>{
+
+              if(
+                event.target ===
+                event.currentTarget
+              ) {
+                closeForm();
+              }
+
+            }}
+          >
+
+            <section
+              className="doctor-form-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="doctor-form-title"
+            >
+
+              <header>
+
+                <div>
+
+                  <span>
+                    {
+                      editingId === null
+                        ? "Mjek i ri"
+                        : "Ndrysho mjekun"
+                    }
+                  </span>
+
+                  <h2 id="doctor-form-title">
+                    {
+                      editingId === null
+                        ? "Shto një mjek"
+                        : "Përditëso të dhënat"
+                    }
+                  </h2>
+
+                </div>
+
+
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  disabled={saving}
+                  aria-label="Mbyll"
+                >
+                  <X
+                    size={18}
+                    aria-hidden="true"
+                  />
+                </button>
+
+              </header>
+
+
+              <form
+                className="doctor-form-modal-body"
+                onSubmit={saveDoctor}
+              >
+
+                <label>
+
+                  <span>Emri i mjekut</span>
+
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(event)=>
+                      setName(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="P.sh. Dr. Arben Krasniqi"
+                    disabled={saving}
+                    autoFocus
+                    required
+                  />
+
+                </label>
+
+
+                <label>
+
+                  <span>Telefoni</span>
+
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(event)=>
+                      setPhone(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="P.sh. 044 123 456"
+                    disabled={saving}
+                  />
+
+                </label>
+
+
+                <footer>
 
                   <button
                     type="button"
-                    className="doctors-cancel-button"
-                    onClick={resetForm}
+                    className="is-cancel"
+                    onClick={closeForm}
                     disabled={saving}
                   >
                     Anulo
                   </button>
 
-                )}
+
+                  <button
+                    type="submit"
+                    className="is-save"
+                    disabled={saving}
+                  >
+                    {
+                      saving
+                        ? "Duke ruajtur..."
+                        : editingId === null
+                          ? "Shto mjekun"
+                          : "Ruaj ndryshimet"
+                    }
+                  </button>
+
+                </footer>
+
+              </form>
+
+            </section>
+
+          </div>
+
+        )}
+
+
+        {catalogOpen && (
+
+          <div
+            className="doctor-catalog-backdrop"
+            role="presentation"
+            onMouseDown={(event)=>{
+
+              if(
+                event.target ===
+                event.currentTarget
+              ) {
+                setCatalogOpen(false);
+              }
+
+            }}
+          >
+
+            <section
+              className="doctor-catalog-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="doctor-catalog-title"
+            >
+
+              <header>
+
+                <div>
+
+                  <span>
+                    Konfigurimi i punëve
+                  </span>
+
+                  <h2 id="doctor-catalog-title">
+                    Katalogu
+                  </h2>
+
+                </div>
 
 
                 <button
-                  type="submit"
-                  className="doctors-save-button"
-                  disabled={saving}
-                >
-                  {
-                    saving
-                      ? "Duke ruajtur..."
-                      : editingId
-                        ? "Ruaj ndryshimet"
-                        : "Shto mjekun"
+                  type="button"
+                  onClick={()=>
+                    setCatalogOpen(false)
                   }
+                  aria-label="Mbyll"
+                >
+                  <X
+                    size={18}
+                    aria-hidden="true"
+                  />
                 </button>
 
-              </div>
-
-            </form>
-
-          </article>
+              </header>
 
 
-          <article className="doctors-list-card">
+              <nav className="doctor-catalog-tabs">
 
-            <div className="doctors-list-header">
-
-              <div className="doctors-section-title">
-
-                <span>
-                  <Stethoscope size={20} />
-                </span>
-
-                <div>
-                  <h2>Lista e mjekëve</h2>
-
-                  <p>
-                    {
-                      filteredDoctors.length
-                    } nga{" "}
-                    {
-                      doctors.length
-                    } mjekë
-                  </p>
-                </div>
-
-              </div>
-
-
-              <button
-                type="button"
-                className="doctors-refresh-button"
-                onClick={loadDoctors}
-                disabled={loading}
-              >
-                ↻ Rifresko
-              </button>
-
-            </div>
-
-
-            <div className="doctors-filters">
-
-              <div className="doctors-search">
-
-                <Search
-                  size={18}
-                  aria-hidden="true"
-                />
-
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event)=>
-                    setSearch(
-                      event.target.value,
+                <button
+                  type="button"
+                  className={
+                    catalogTab === "materials"
+                      ? "is-active"
+                      : ""
+                  }
+                  onClick={()=>
+                    setCatalogTab(
+                      "materials",
                     )
                   }
-                  placeholder="Kërko emrin ose telefonin..."
-                />
+                >
+                  <Boxes size={15} />
+                  Materialet
+                </button>
+
+
+                <button
+                  type="button"
+                  className={
+                    catalogTab === "colors"
+                      ? "is-active"
+                      : ""
+                  }
+                  onClick={()=>
+                    setCatalogTab(
+                      "colors",
+                    )
+                  }
+                >
+                  <Palette size={15} />
+                  Ngjyrat
+                </button>
+
+              </nav>
+
+
+              <div className="doctor-catalog-content">
+
+                {
+                  catalogTab === "materials"
+                    ? <MaterialsManager />
+                    : <ColorsManager />
+                }
 
               </div>
 
+            </section>
 
-              <select
-                value={statusFilter}
-                onChange={(event)=>
-                  setStatusFilter(
-                    event.target.value,
-                  )
-                }
-              >
-                <option value="all">
-                  Të gjitha statuset
-                </option>
+          </div>
 
-                <option value="active">
-                  Aktivë
-                </option>
-
-                <option value="inactive">
-                  Jo aktivë
-                </option>
-              </select>
-
-            </div>
-
-
-            <div className="doctors-table-scroll">
-
-              <table className="doctors-table">
-
-                <thead>
-
-                  <tr>
-                    <th>Mjeku</th>
-                    <th>Telefoni</th>
-                    <th>Statusi</th>
-                    <th>Veprime</th>
-                    <th />
-                  </tr>
-
-                </thead>
-
-
-                <tbody>
-
-                  {filteredDoctors.map(
-                    (doctor)=>(
-
-                      <tr
-                        key={doctor.id}
-                        className="doctors-clickable-row"
-                        tabIndex={0}
-                        role="button"
-                        aria-label={
-                          `Hap detajet e mjekut ${doctor.name}`
-                        }
-                        onClick={()=>
-                          navigate(
-                            `/doctors/${doctor.id}`,
-                          )
-                        }
-                        onKeyDown={(event)=>{
-
-                          if(
-                            event.key === "Enter" ||
-                            event.key === " "
-                          ) {
-
-                            event.preventDefault();
-
-                            navigate(
-                              `/doctors/${doctor.id}`,
-                            );
-
-                          }
-
-                        }}
-                      >
-
-                        <td>
-
-                          <div className="doctors-doctor-cell">
-
-                            <span>
-                              {
-                                doctor.name
-                                  .charAt(0)
-                                  .toUpperCase()
-                              }
-                            </span>
-
-                            <div>
-                              <strong>
-                                {doctor.name}
-                              </strong>
-
-                              <small>
-                                Mjeku #{doctor.id}
-                              </small>
-                            </div>
-
-                          </div>
-
-                        </td>
-
-
-                        <td>
-                          {doctor.phone ?? "-"}
-                        </td>
-
-
-                        <td>
-
-                          <span
-                            className={
-                              doctor.active
-                                ? "doctors-status is-active"
-                                : "doctors-status is-inactive"
-                            }
-                          >
-                            {
-                              doctor.active
-                                ? "Aktiv"
-                                : "Jo aktiv"
-                            }
-                          </span>
-
-                        </td>
-
-
-                        <td>
-
-                          <div
-                            className="doctors-row-actions"
-                            onClick={(event)=>
-                              event.stopPropagation()
-                            }
-                          >
-
-                            <button
-                              type="button"
-                              className="doctors-edit-button"
-                              onClick={()=>
-                                editDoctor(doctor)
-                              }
-                            >
-                              <Pencil size={14} />
-                              Ndrysho
-                            </button>
-
-
-                            <button
-                              type="button"
-                              className={
-                                doctor.active
-                                  ? "doctors-status-button is-deactivate"
-                                  : "doctors-status-button is-activate"
-                              }
-                              disabled={
-                                actionDoctorId ===
-                                doctor.id
-                              }
-                              onClick={()=>
-                                toggleStatus(doctor)
-                              }
-                            >
-                              {
-                                actionDoctorId ===
-                                doctor.id
-                                  ? "..."
-                                  : doctor.active
-                                    ? "Çaktivizo"
-                                    : "Aktivizo"
-                              }
-                            </button>
-
-                          </div>
-
-                        </td>
-
-
-                        <td className="doctors-chevron">
-
-                          <ChevronRight
-                            size={18}
-                            aria-hidden="true"
-                          />
-
-                        </td>
-
-                      </tr>
-
-                    ),
-                  )}
-
-
-                  {!loading &&
-                    filteredDoctors.length === 0 && (
-
-                      <tr>
-
-                        <td
-                          colSpan={5}
-                          className="doctors-empty"
-                        >
-                          Nuk u gjet asnjë mjek.
-                        </td>
-
-                      </tr>
-
-                    )}
-
-
-                  {loading && (
-
-                    <tr>
-
-                      <td
-                        colSpan={5}
-                        className="doctors-empty"
-                      >
-                        Duke ngarkuar...
-                      </td>
-
-                    </tr>
-
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </article>
-
-        </section>
-
-        </section>
-
-
-        <section
-          id="doctors-panel-materials"
-          className="doctors-tab-panel"
-          role="tabpanel"
-          aria-labelledby="doctors-tab-materials"
-          hidden={
-            activeTab !== "materials"
-          }
-        >
-          <MaterialsManager />
-        </section>
-
-
-        <section
-          id="doctors-panel-colors"
-          className="doctors-tab-panel"
-          role="tabpanel"
-          aria-labelledby="doctors-tab-colors"
-          hidden={
-            activeTab !== "colors"
-          }
-        >
-          <ColorsManager />
-        </section>
+        )}
 
       </main>
 
